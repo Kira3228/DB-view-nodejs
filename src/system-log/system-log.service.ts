@@ -1,4 +1,4 @@
-import { getRepository, In } from "typeorm";
+import { getRepository, In, Like } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { FiltersDto } from "./dto/filters.dto";
 
@@ -29,8 +29,8 @@ export class SystemLogService {
         }
     }
 
-    async getFilteredSystemEvents(filters: FiltersDto) {
-        const { page, limit } = filters
+    async getFilteredSystemEvents(filters: FiltersDto, page = 1, limit = 30) {
+
         console.log(page, limit)
         const queryBuilder = this.systemLogRepo.createQueryBuilder("event")
             .leftJoinAndSelect("event.relatedFileId", "file")
@@ -76,7 +76,7 @@ export class SystemLogService {
                 queryBuilder.andWhere("file.status = :status", { status: filters.status });
             }
             if (filters.filePath) {
-                queryBuilder.andWhere("file.filePath = :filePath", { filePath: filters.filePath });
+                queryBuilder.andWhere("file.filePath = :filePath", { filePath: Like(filters.filePath) });
             }
             if (filters.fileSystemId) {
                 queryBuilder.andWhere("file.fileSystemId = :fileSystemId", {
@@ -93,7 +93,7 @@ export class SystemLogService {
             }
             if (filters.relatedFileId.filePath) {
                 queryBuilder.andWhere("file.filePath = :filePath", {
-                    filePath: filters.relatedFileId.filePath
+                    filePath: Like(filters.relatedFileId.filePath)
                 });
             }
             if (filters.relatedFileId.fileSystemId) {

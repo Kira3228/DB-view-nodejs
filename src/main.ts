@@ -1,7 +1,7 @@
 import { createConnection } from "typeorm";
-import express from 'express'
-import userRouter from './User/user.router'
-import systemLogRouter from './system-log/system-log.router'
+import express from 'express';
+import { EventEmitter } from 'events';
+import userRouter from './User/user.router';
 import { User } from "./entities/user.entity";
 import { SystemEvent } from "./entities/system_events.entity";
 import { Process } from "./entities/process.entity";
@@ -11,7 +11,12 @@ import { MonitoredFile } from "./entities/monitored_file.entity";
 import { FileRelationship } from "./entities/file_relationships.entity";
 import { FileOrigin } from "./entities/file_origins.entity";
 import { FileAccessEvent } from "./entities/file_access_events.entity";
-import { initSystemLogService } from "./system-log/system-log.controller";
+import { SystemLogController } from "./system-log/system-log.controller";
+import { ActiveFileController } from "./active-file/active-file.controller";
+
+// Увеличиваем лимит слушателей событий
+EventEmitter.defaultMaxListeners = 15;
+
 async function bootstrap() {
     const connection = await createConnection({
         type: `sqlite`,
@@ -31,17 +36,20 @@ async function bootstrap() {
         logging: true
     });
     console.log("Connected to database");
-    initSystemLogService()
-    const app = express()
-    const PORT = 3000
-    app.use(express.json())
-    app.use('/api/users', userRouter)
-    app.use('/api/logs', systemLogRouter)
+    const systemLogController = new SystemLogController();
+    const activeFileController = new ActiveFileController()
+    const app = express();
+    const PORT = 3000;
+
+    app.use(express.json());
+
+    app.use('/api/logs', systemLogController.getRouter());
+    app.use('/api/active', activeFileController.getRouter())
+
     app.listen(PORT, () => {
         console.log(`Server is running on http://localhost:${PORT}`);
     });
 }
-
 
 bootstrap().catch(error => {
     console.error("Application startup failed:", error);
