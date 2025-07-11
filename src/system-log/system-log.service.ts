@@ -1,4 +1,4 @@
-import { getRepository } from "typeorm";
+import { getRepository, In } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { FiltersDto } from "./dto/filters.dto";
 
@@ -31,6 +31,7 @@ export class SystemLogService {
 
     async getFilteredSystemEvents(filters: FiltersDto) {
         const { page, limit } = filters
+        console.log(page, limit)
         const queryBuilder = this.systemLogRepo.createQueryBuilder("event")
             .leftJoinAndSelect("event.relatedFileId", "file")
             .leftJoinAndSelect("event.relatedProcessId", "process")
@@ -101,7 +102,7 @@ export class SystemLogService {
                 });
             }
         }
-
+        console.log((page - 1) * limit)
         queryBuilder.skip((page - 1) * limit).take(limit);
 
         const [events, totalCount] = await queryBuilder.getManyAndCount();
@@ -117,5 +118,46 @@ export class SystemLogService {
 
     }
 
+    async getSelectedEvents(ids: number[]) {
+        const where: any = {}
+        if (ids && ids.length) {
+            where.id = In(ids)
+        }
+        const data = await this.systemLogRepo.find({
+            where
+        })
+        return this.exportCSV(data)
+    }
+
+    async getAllCSV() {
+        const data = await this.systemLogRepo.find()
+        return this.exportCSV(data)
+    }
+
+    private async exportCSV(data: any) {
+        if (!data || data.length === 0) {
+            return { data: [], headers: '', rows: '' }
+        }
+        console.log(`до хедера`);
+        console.log(`data[0]`, data[0]);
+
+        const headers = Object.keys(data[0]).join(',')
+
+        console.log(`ПОСЛЕ  хедера`);
+        const rows = data
+            .map((row) =>
+                Object.values(row)
+                    .map((val) => {
+                        const stringVal =
+                            typeof val === 'object' ? JSON.stringify(val) : String(val);
+                        return `"${stringVal.replace(/"/g, '""')}"`;
+                    })
+                    .join(',')).join('\n');
+        return {
+            data,
+            headers,
+            rows
+        }
+    }
 
 }

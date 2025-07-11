@@ -1,7 +1,7 @@
 import { createConnection } from "typeorm";
 import express from 'express'
 import userRouter from './User/user.router'
-import eventLogRouter from './system-log/system-log.router'
+import systemLogRouter from './system-log/system-log.router'
 import { User } from "./entities/user.entity";
 import { SystemEvent } from "./entities/system_events.entity";
 import { Process } from "./entities/process.entity";
@@ -36,7 +36,7 @@ async function bootstrap() {
     const PORT = 3000
     app.use(express.json())
     app.use('/api/users', userRouter)
-    app.use('/api/logs', eventLogRouter)
+    app.use('/api/logs', systemLogRouter)
     app.listen(PORT, () => {
         console.log(`Server is running on http://localhost:${PORT}`);
     });
