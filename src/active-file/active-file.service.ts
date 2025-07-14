@@ -2,9 +2,19 @@ import { getRepository, Like } from "typeorm";
 import { MonitoredFile } from "../entities/monitored_file.entity";
 import { ActiveFileFilters } from "./dto/acrive-file.dto";
 import { UpdateStatusDto } from "./dto/updateStatus.dto";
+import { log } from "console";
+import { FileRelationship } from "../entities/file_relationships.entity";
+
+type TNode = {
+    id: number
+    parentId: number
+    childId: number
+    type: string
+}
 
 export class ActiveFilesService {
     private activeFileRepo = getRepository(MonitoredFile)
+    private relationRepo = getRepository(FileRelationship)
 
     async getActiveFiles(
         filters: ActiveFileFilters,
@@ -46,15 +56,18 @@ export class ActiveFilesService {
         page: number = 1,
         limit: number = 30) {
         const statusConditions = ['archived', 'deleted'].map((status) => ({
+            status,
             ...this.buildWhereConditions(filters)
         }))
-        const where = [...statusConditions]
 
+        const where = [...statusConditions];
+        log(`цуййцуйцу`, where)
         const [files, totalCount] = await this.activeFileRepo.findAndCount({
             where,
             skip: (filters.page - 1) * filters.limit,
             take: filters.limit
         })
+        log(files, totalCount, { totalPages: Math.ceil(totalCount / limit), }, page, limit)
         return {
             files,
             totalCount,
@@ -68,13 +81,13 @@ export class ActiveFilesService {
         const where: any = {}
 
         if (filters.filePath) {
-            where.filePath = Like(`%${filters.filePath}`)
+            where.filePath = Like(`%${filters.filePath}%`)
         }
-
+        log(filters.filePath)
         if (filters.inode) {
-            where.inode = Like(`%${filters.inode}`)
+            where.inode = Like(`%${filters.inode}%`)
         }
-
+        log(where)
         return where
     }
 
@@ -89,4 +102,32 @@ export class ActiveFilesService {
             where: { id: id }
         })
     }
+
+    async graph() {
+        const rels = await this.relationRepo.find({
+            relations: ['parentFile', 'childFile']
+        });
+
+        const groupedRelations = rels.reduce((acc, rel) => {
+            const parentId = rel.parentFileId.toString();
+
+            if (!acc[parentId]) {
+                acc[parentId] = {
+                    parentFile: rel.parentFile,
+                    children: []
+                };
+            }
+
+            acc[parentId].children.push({
+                relationshipType: rel.relationshipType,
+                childFile: rel.childFile,
+                createdAt: rel.createdAt
+            });
+
+            return acc;
+        }, {});
+        return groupedRelations;
+    }
+
+   
 }

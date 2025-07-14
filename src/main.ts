@@ -1,7 +1,6 @@
 import { createConnection } from "typeorm";
 import express from 'express';
 import { EventEmitter } from 'events';
-import userRouter from './User/user.router';
 import { User } from "./entities/user.entity";
 import { SystemEvent } from "./entities/system_events.entity";
 import { Process } from "./entities/process.entity";
@@ -13,6 +12,7 @@ import { FileOrigin } from "./entities/file_origins.entity";
 import { FileAccessEvent } from "./entities/file_access_events.entity";
 import { SystemLogController } from "./system-log/system-log.controller";
 import { ActiveFileController } from "./active-file/active-file.controller";
+import cors from 'cors'
 
 // Увеличиваем лимит слушателей событий
 EventEmitter.defaultMaxListeners = 15;
@@ -42,7 +42,7 @@ async function bootstrap() {
     const PORT = 3000;
 
     app.use(express.json());
-
+    app.use(cors())
     app.use('/api/logs', systemLogController.getRouter());
     app.use('/api/active', activeFileController.getRouter())
 
