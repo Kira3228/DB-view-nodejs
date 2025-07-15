@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import { SystemLogService } from './system-log.service'
 import { FiltersDto } from "./dto/filters.dto";
+import { log } from "console";
 const express = require('express');
 
 export class SystemLogController {
@@ -31,12 +32,12 @@ export class SystemLogController {
     }
 
     async getFilteredSystemLog(req: Request, res: Response) {
-        console.log('Fetching system filtered logs...');
         try {
             const filters: FiltersDto = {
                 ...req.query,
                 ...req.body,
             };
+            log(filters)
             const result = await this.systemLogService.getFilteredSystemEvents(filters, filters.page, filters.limit);
             return res.status(200).json(result);
         } catch (error) {

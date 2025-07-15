@@ -1,6 +1,9 @@
-import { getRepository, In, Like } from "typeorm";
+import { Between, getRepository, In, Like, SelectQueryBuilder } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { FiltersDto } from "./dto/filters.dto";
+import { log } from "console";
+import { pid } from "process";
+import { fileURLToPath } from "url";
 
 export class SystemLogService {
     private systemLogRepo = getRepository(SystemEvent);
@@ -29,82 +32,46 @@ export class SystemLogService {
         }
     }
 
-    async getFilteredSystemEvents(filters: FiltersDto, page = 1, limit = 30) {
-
-        console.log(page, limit)
-        const queryBuilder = this.systemLogRepo.createQueryBuilder("event")
-            .leftJoinAndSelect("event.relatedFileId", "file")
-            .leftJoinAndSelect("event.relatedProcessId", "process")
+    async getFilteredSystemEvents(
+        filters: FiltersDto,
+        page: number = 1,
+        limit: number = 30
+    ) {
+        const queryBuilder = this.systemLogRepo
+            .createQueryBuilder('event')
+            .leftJoinAndSelect('event.relatedFileId', 'file')
+            .leftJoinAndSelect('event.relatedProcessId', 'process')
             .select([
-                "event.id",
-                "event.eventData",
-                "event.timestamp",
-                "event.eventType",
-                "event.source",
-                "file.id",
-                "file.filePath",
-                "file.fileName",
-                "file.status",
-                "file.fileSystemId",
-                "process.id",
-                "process.pid"
-            ])
+                'event.id',
+                'event.eventData',
+                'event.timestamp',
+                'event.eventType',
+                'event.source',
+                'file.id',
+                'file.filePath',
+                'file.fileName',
+                'file.status',
+                'file.fileSystemId',
+                'process.id',
+                'process.pid',
+            ]);
+
         if (filters.eventType) {
-            queryBuilder.andWhere("event.eventType = :eventType", { eventType: filters.eventType });
-        }
-
-        if (filters.startDate && filters.endDate) {
-            queryBuilder.andWhere("event.timestamp BETWEEN :startDate AND :endDate", {
-                startDate: new Date(Number(filters.startDate)),
-                endDate: new Date(Number(filters.endDate))
+            queryBuilder.andWhere('event.eventType = :eventType', {
+                eventType: filters.eventType,
             });
-        } else {
-            if (filters.startDate) {
-                queryBuilder.andWhere("event.timestamp >= :startDate", {
-                    startDate: new Date(Number(filters.startDate))
-                });
-            }
-            if (filters.endDate) {
-                queryBuilder.andWhere("event.timestamp <= :endDate", {
-                    endDate: new Date(Number(filters.endDate))
-                });
-            }
         }
 
-        if (filters.status || filters.filePath || filters.fileSystemId) {
-            if (filters.status) {
-                queryBuilder.andWhere("file.status = :status", { status: filters.status });
-            }
-            if (filters.filePath) {
-                queryBuilder.andWhere("file.filePath = :filePath", { filePath: Like(filters.filePath) });
-            }
-            if (filters.fileSystemId) {
-                queryBuilder.andWhere("file.fileSystemId = :fileSystemId", {
-                    fileSystemId: filters.fileSystemId
-                });
-            }
-        }
+        this.applyDateFilters(queryBuilder, filters);
+
+        this.applyFileFilters(queryBuilder, filters);
 
         if (filters.relatedFileId) {
-            if (filters.relatedFileId.status) {
-                queryBuilder.andWhere("file.status = :fileStatus", {
-                    fileStatus: filters.relatedFileId.status
-                });
-            }
-            if (filters.relatedFileId.filePath) {
-                queryBuilder.andWhere("file.filePath = :filePath", {
-                    filePath: Like(filters.relatedFileId.filePath)
-                });
-            }
-            if (filters.relatedFileId.fileSystemId) {
-                queryBuilder.andWhere("file.fileSystemId = :fileSystemId", {
-                    fileSystemId: filters.relatedFileId.fileSystemId
-                });
-            }
+            this.applyRelatedFileFilters(queryBuilder, filters.relatedFileId);
         }
-        console.log((page - 1) * limit)
-        queryBuilder.skip((page - 1) * limit).take(limit);
 
+        const skipAmount = (page - 1) * limit;
+        queryBuilder.skip(skipAmount).take(limit);
         const [events, totalCount] = await queryBuilder.getManyAndCount();
 
         return {
@@ -112,11 +79,89 @@ export class SystemLogService {
             totalCount,
             page,
             totalPages: Math.ceil(totalCount / limit),
-            limit
+            limit,
         };
-
-
     }
+
+    private applyDateFilters(
+        queryBuilder: SelectQueryBuilder<SystemEvent>,
+        filters: FiltersDto
+    ) {
+        if (filters.startDate && filters.endDate) {
+            // Преобразуем даты в правильный формат для SQLite
+            const startDate = new Date(filters.startDate).toISOString().replace('T', ' ').slice(0, 19);
+            const endDate = new Date(filters.endDate).toISOString().replace('T', ' ').slice(0, 19);
+
+            queryBuilder.andWhere(
+                'datetime(event.timestamp) BETWEEN :startDate AND :endDate',
+                {
+                    startDate: `'${startDate}'`, // Обязательно в кавычках!
+                    endDate: `'${endDate}'`
+                }
+            );
+            log(queryBuilder.getSql())
+        } else {
+            if (filters.startDate) {
+                const startDate = new Date(filters.startDate).toISOString().replace('T', ' ').slice(0, 19);
+                queryBuilder.andWhere('event.timestamp >= :startDate', {
+                    startDate: `'${startDate}'`
+                });
+            }
+            if (filters.endDate) {
+                const endDate = new Date(filters.endDate).toISOString().replace('T', ' ').slice(0, 19);
+                queryBuilder.andWhere('event.timestamp <= :endDate', {
+                    endDate: `'${endDate}'`
+                });
+            }
+        }
+    }
+
+
+    private applyFileFilters(
+        queryBuilder: SelectQueryBuilder<SystemEvent>,
+        filters: FiltersDto
+    ) {
+        if (filters.status || filters.filePath || filters.fileSystemId) {
+            if (filters.status) {
+                queryBuilder.andWhere('file.status = :status', {
+                    status: filters.status,
+                });
+
+            }
+            if (filters.filePath) {
+                queryBuilder.andWhere('file.filePath LIKE :filePath', {
+                    filePath: `%${filters.filePath}%`,
+                });
+            }
+            if (filters.fileSystemId) {
+                queryBuilder.andWhere('file.fileSystemId = :fileSystemId', {
+                    fileSystemId: filters.fileSystemId,
+                });
+            }
+        }
+    }
+
+    private applyRelatedFileFilters(
+        queryBuilder: SelectQueryBuilder<SystemEvent>,
+        relatedFile: { status?: string; filePath?: string; fileSystemId?: string }
+    ) {
+        if (relatedFile.status) {
+            queryBuilder.andWhere('file.status = :fileStatus', {
+                fileStatus: relatedFile.status,
+            });
+        }
+        if (relatedFile.filePath) {
+            queryBuilder.andWhere('file.filePath LIKE :filePath', {
+                filePath: `%${relatedFile.filePath}%`,
+            });
+        }
+        if (relatedFile.fileSystemId) {
+            queryBuilder.andWhere('file.fileSystemId = :fileSystemId', {
+                fileSystemId: relatedFile.fileSystemId,
+            });
+        }
+    }
+
 
     async getSelectedEvents(ids: number[]) {
         const where: any = {}
@@ -128,6 +173,7 @@ export class SystemLogService {
         })
         return this.exportCSV(data)
     }
+
 
     async getAllCSV() {
         const data = await this.systemLogRepo.find()

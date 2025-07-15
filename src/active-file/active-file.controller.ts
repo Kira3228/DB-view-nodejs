@@ -43,7 +43,13 @@ export class ActiveFileController {
     }
 
     async graph(req: Request, res: Response) {
-        const result = await this.activeFileService.graph();
+        const body = req.query
+        log(body)
+        const filePath = body.filePath
+        const inode = body.inode
+        log(filePath, inode)
+
+        const result = await this.activeFileService.graph(filePath as string, Number(inode));
         return res.status(200).json(result)
     }
     getRouter() {

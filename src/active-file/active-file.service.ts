@@ -61,7 +61,7 @@ export class ActiveFilesService {
         }))
 
         const where = [...statusConditions];
-        log(`цуййцуйцу`, where)
+
         const [files, totalCount] = await this.activeFileRepo.findAndCount({
             where,
             skip: (filters.page - 1) * filters.limit,
@@ -103,10 +103,31 @@ export class ActiveFilesService {
         })
     }
 
-    async graph() {
-        const rels = await this.relationRepo.find({
-            relations: ['parentFile', 'childFile']
-        });
+    async graph(filePath?: string, inode?: number) {
+        const query = this.relationRepo
+            .createQueryBuilder('relation')
+            .leftJoinAndSelect('relation.parentFile', 'parentFile')
+            .leftJoinAndSelect('relation.childFile', 'childFile');
+
+        // Добавляем условия фильтрации
+        if (filePath) {
+            query.andWhere('parentFile.filePath LIKE :filePath', {
+                filePath: `%${filePath}%`
+            });
+        }
+
+        if (inode) {
+            query.andWhere('parentFile.inode = :inode', { inode });
+        }
+
+
+        log(query)
+        // const rels = await this.relationRepo.find({
+        //     relations: ['parentFile', 'childFile'],
+        //     where
+        // });
+        const rels = await query.getMany();
+
 
         const groupedRelations = rels.reduce((acc, rel) => {
             const parentId = rel.parentFileId.toString();
@@ -128,6 +149,7 @@ export class ActiveFilesService {
         }, {});
         return groupedRelations;
     }
-
-   
 }
+
+
+
