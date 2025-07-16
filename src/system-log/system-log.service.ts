@@ -88,15 +88,16 @@ export class SystemLogService {
         filters: FiltersDto
     ) {
         if (filters.startDate && filters.endDate) {
-            // Преобразуем даты в правильный формат для SQLite
             const startDate = new Date(filters.startDate).toISOString().replace('T', ' ').slice(0, 19);
             const endDate = new Date(filters.endDate).toISOString().replace('T', ' ').slice(0, 19);
 
+            log(startDate.toString(), endDate)
             queryBuilder.andWhere(
-                'datetime(event.timestamp) BETWEEN :startDate AND :endDate',
+                'event.timestamp BETWEEN :startDate AND :endDate',
                 {
-                    startDate: `'${startDate}'`, // Обязательно в кавычках!
-                    endDate: `'${endDate}'`
+                    startDate: `${startDate}`,
+                    endDate: `${endDate}`
+
                 }
             );
             log(queryBuilder.getSql())
@@ -126,7 +127,7 @@ export class SystemLogService {
                 queryBuilder.andWhere('file.status = :status', {
                     status: filters.status,
                 });
-
+                log(queryBuilder.getSql())
             }
             if (filters.filePath) {
                 queryBuilder.andWhere('file.filePath LIKE :filePath', {
@@ -149,6 +150,7 @@ export class SystemLogService {
             queryBuilder.andWhere('file.status = :fileStatus', {
                 fileStatus: relatedFile.status,
             });
+            log(queryBuilder.getSql())
         }
         if (relatedFile.filePath) {
             queryBuilder.andWhere('file.filePath LIKE :filePath', {
@@ -174,6 +176,12 @@ export class SystemLogService {
         return this.exportCSV(data)
     }
 
+    async getAllEventTypeOption() {
+        const options = this.systemLogRepo.find({
+            select: ["eventType"]
+        })
+        return options
+    }
 
     async getAllCSV() {
         const data = await this.systemLogRepo.find()

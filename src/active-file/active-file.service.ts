@@ -5,12 +5,6 @@ import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { log } from "console";
 import { FileRelationship } from "../entities/file_relationships.entity";
 
-type TNode = {
-    id: number
-    parentId: number
-    childId: number
-    type: string
-}
 
 export class ActiveFilesService {
     private activeFileRepo = getRepository(MonitoredFile)
@@ -23,7 +17,7 @@ export class ActiveFilesService {
     ) {
         const where: any = {}
         if (filters.filePath) {
-            where.filePath = filters.filePath
+            where.filePath = Like(`%${filters.filePath}%`)
         }
         if (filters.inode) {
             where.inode = filters.inode
@@ -93,6 +87,7 @@ export class ActiveFilesService {
 
     async updateStatus(dto: UpdateStatusDto, id: number) {
         const { status } = dto
+        log(status, id)
         const file = await this.activeFileRepo.update({ id }, { status })
 
         if (file.affected === 0) {

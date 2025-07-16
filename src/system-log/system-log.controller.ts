@@ -2,6 +2,7 @@ import { Request, Response, Router } from "express";
 import { SystemLogService } from './system-log.service'
 import { FiltersDto } from "./dto/filters.dto";
 import { log } from "console";
+import { triggerAsyncId } from "async_hooks";
 const express = require('express');
 
 export class SystemLogController {
@@ -18,6 +19,7 @@ export class SystemLogController {
         this.router.get('/filtered', this.getFilteredSystemLog.bind(this));
         this.router.get('/export/selected', this.getSelectedLogs.bind(this));
         this.router.get('/export/all', this.exportCSV.bind(this));
+        this.router.get('/get/options', this.getAllOptions.bind(this));
     }
 
     async getSystemLog(req: Request, res: Response) {
@@ -81,7 +83,18 @@ export class SystemLogController {
             });
         }
     }
-
+    async getAllOptions(req: Request, res: Response) {
+        try {
+            const result = await this.systemLogService.getAllEventTypeOption()
+            return res.json(result)
+        }
+        catch (error) {
+            console.error("Error in exportCSV:", error);
+            return res.status(500).json({
+                error: error.message || "Internal server error"
+            });
+        }
+    }
     getRouter() {
         return this.router;
     }

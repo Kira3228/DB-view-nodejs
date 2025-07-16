@@ -14,7 +14,7 @@ export class ActiveFileController {
     activeFileService: ActiveFilesService
 
     initializeRoutes() {
-        this.router.get('/get', this.get.bind(this));
+        this.router.get('/get/active', this.get.bind(this));
         this.router.get('/get/archive', this.getArchive.bind(this));
         this.router.patch('/get/active/update/:id', this.updateStatus.bind(this));
         this.router.get('/get/graph', this.graph.bind(this));
@@ -22,6 +22,7 @@ export class ActiveFileController {
 
     async get(req: Request, res: Response) {
         const filters: ActiveFileFilters = { ...req.query }
+        log(filters)
         const result = await this.activeFileService.getActiveFiles(filters, filters.page, filters.limit)
         return res.status(200).json(result)
     }

@@ -33,7 +33,7 @@ async function bootstrap() {
             FileOrigin,
             FileAccessEvent
         ],
-        // logging: true
+        logging: true
     });
     console.log("Connected to database");
     const systemLogController = new SystemLogController();
