@@ -1,13 +1,17 @@
-import { Between, getRepository, In, Like, SelectQueryBuilder } from "typeorm";
+import { getRepository, In, SelectQueryBuilder } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { FiltersDto } from "./dto/filters.dto";
 import { log } from "console";
-import { pid } from "process";
-import { fileURLToPath } from "url";
+import PdfPrinter from 'pdfmake';
+import * as path from 'path';
+import * as fs from 'fs';
+
+
 
 export class SystemLogService {
     private systemLogRepo = getRepository(SystemEvent);
-
+    private readonly russianFontPath = path.resolve(__dirname, '../../assets/timesnewromanpsmt.ttf');
+    private readonly robotoFontPath = path.resolve(__dirname, '../../assets/Roboto.ttf')
     async getSystemEvents() {
         try {
             return await this.systemLogRepo
@@ -213,5 +217,49 @@ export class SystemLogService {
             rows
         }
     }
+
+    async generatePdfReport() {
+        const fonts = {
+            Roboto: {
+                normal: this.robotoFontPath,
+
+            }
+        };
+
+        const printer = new PdfPrinter({
+            Roboto: {
+                normal: this.robotoFontPath
+            }
+        });
+
+        const docDefinition = {
+            content: [
+                { text: 'Отчёт по событиям', style: 'header' },
+                {
+                    table: {
+                        headerRows: 2,
+                        widths: ['auto', 'auto', `auto`],
+                        body: [
+                            ['Дата', 'Тип', 'Статус'],
+                            ['2023-01-01', 'Ошибка', 'Критично'],
+                            ['2023-01-02', 'Предупреждение', 'Нормально']
+                        ]
+                    }
+                }
+            ],
+            styles: {
+                header: {
+                    fontSize: 18,
+                    margin: [0, 0, 0, 0],
+                    align: `center`
+                }
+            }
+        };
+
+        return .
+    }
+
+
+
 
 }

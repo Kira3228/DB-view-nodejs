@@ -4,8 +4,7 @@ import { ActiveFileFilters } from "./dto/acrive-file.dto";
 import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { log } from "console";
 import { FileRelationship } from "../entities/file_relationships.entity";
-
-
+import * as PDFDocument from 'pdfkit';
 
 export class ActiveFilesService {
     private activeFileRepo = getRepository(MonitoredFile)
@@ -147,7 +146,7 @@ export class ActiveFilesService {
     }
 
     async generatePDFreport() {
-
+        
     }
 
 }
