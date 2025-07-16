@@ -6,6 +6,7 @@ import { log } from "console";
 import { FileRelationship } from "../entities/file_relationships.entity";
 
 
+
 export class ActiveFilesService {
     private activeFileRepo = getRepository(MonitoredFile)
     private relationRepo = getRepository(FileRelationship)
@@ -144,6 +145,11 @@ export class ActiveFilesService {
         }, {});
         return groupedRelations;
     }
+
+    async generatePDFreport() {
+
+    }
+
 }
 
 
