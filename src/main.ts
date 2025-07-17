@@ -13,6 +13,7 @@ import { FileAccessEvent } from "./entities/file_access_events.entity";
 import { SystemLogController } from "./system-log/system-log.controller";
 import { ActiveFileController } from "./active-file/active-file.controller";
 import cors from 'cors'
+import { ReportController } from "./reports/reports.controller";
 
 // Увеличиваем лимит слушателей событий
 EventEmitter.defaultMaxListeners = 15;
@@ -33,11 +34,12 @@ async function bootstrap() {
             FileOrigin,
             FileAccessEvent
         ],
-        logging: true
+        // logging: true
     });
     console.log("Connected to database");
     const systemLogController = new SystemLogController();
     const activeFileController = new ActiveFileController()
+    const reportController = new ReportController();
     const app = express();
     const PORT = 3000;
 
@@ -45,6 +47,8 @@ async function bootstrap() {
     app.use(cors())
     app.use('/api/logs', systemLogController.getRouter());
     app.use('/api/active', activeFileController.getRouter())
+    app.use(`/api/reports`, reportController.getRouter())
+
 
     app.listen(PORT, () => {
         console.log(`Server is running on http://localhost:${PORT}`);

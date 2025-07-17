@@ -5,6 +5,7 @@ import { log } from "console";
 import PdfPrinter from 'pdfmake';
 import * as path from 'path';
 import * as fs from 'fs';
+import { TDocumentDefinitions } from "pdfmake/interfaces";
 
 
 
@@ -232,7 +233,7 @@ export class SystemLogService {
             }
         });
 
-        const docDefinition = {
+        const docDefinition: TDocumentDefinitions = {
             content: [
                 { text: 'Отчёт по событиям', style: 'header' },
                 {
@@ -251,14 +252,15 @@ export class SystemLogService {
                 header: {
                     fontSize: 18,
                     margin: [0, 0, 0, 0],
-                    align: `center`
                 }
             }
         };
 
-        return .
+        const pdfDoc = printer.createPdfKitDocument(docDefinition)
+        return pdfDoc
     }
 
+    
 
 
 

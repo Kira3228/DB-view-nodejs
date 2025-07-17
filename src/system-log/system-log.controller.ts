@@ -98,20 +98,21 @@ export class SystemLogController {
     }
     async getPdfReport(req: Request, res: Response) {
         try {
-        // Получаем PDF документ из сервиса
-        const pdfDoc = await this.systemLogService.generatePdfReport();
-        
-        // Устанавливаем правильные заголовки для PDF
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
-        
-        // Отправляем PDF клиенту
-        pdfDoc.pipe(res);
-        pdfDoc.end();
-    } catch (error) {
-        console.error('Ошибка при генерации PDF:', error);
-        res.status(500).send('Ошибка при генерации отчета');
-    }
+            // Получаем PDF документ из сервиса
+            const pdfDoc = await this.systemLogService.generatePdfReport();
+
+            // Устанавливаем правильные заголовки для PDF
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
+
+            pdfDoc.pipe(res)
+            pdfDoc.end()
+
+
+        } catch (error) {
+            console.error('Ошибка при генерации PDF:', error);
+            res.status(500).send('Ошибка при генерации отчета');
+        }
 
 
     }
