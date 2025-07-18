@@ -39,16 +39,27 @@ export type SystemEventFlags<T> = {
 
 
 export const field: SystemEventFlags<SystemEvent> = {
+    timestamp: true,
     id: true,
-    // eventData: true,
+    eventType: true,
     relatedProcessId: {
-        pid: true
+        pid: true,
+        id: true,
+        createdAt: true
     },
     relatedFileId: {
-        fileSize: true,
+        id: true,
+        createdAt: true,
+        fileName: true,
+        filePath: true
     }
 }
 export type Flatten = Record<keyof SystemEvent | keyof MonitoredFile | keyof Process, string | undefined | null>;
 
 
+
+export type FlattenedSystemEventFlags<T> = {
+    [K in keyof T as T[K] extends object ? keyof T[K] : K]:
+    T[K] extends object ? (FlattenedSystemEventFlags<T[K]> | null | undefined) : T[K]
+};
 
