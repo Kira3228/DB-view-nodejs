@@ -4,7 +4,6 @@ import { TDocumentDefinitions, TFontDictionary } from "pdfmake/interfaces";
 import * as path from 'path';
 import PdfPrinter from "pdfmake";
 import { field, SystemEventFlags } from "./report-config";
-import { log } from "console";
 
 export class ReportService {
     private reportRepo = getRepository(SystemEvent);
@@ -13,13 +12,14 @@ export class ReportService {
     async getEvents() {
         try {
             const { selectFields, fieldNames } = this.buildEventSelect(field);
-            log(selectFields)
+
             const events = await this.reportRepo
                 .createQueryBuilder('event')
                 .leftJoinAndSelect('event.relatedFileId', 'file')
                 .leftJoinAndSelect('event.relatedProcessId', 'process')
                 .select(selectFields)
                 .getMany();
+
             const flattenedData = this.preparePdfData(events, fieldNames);
             return this.generatePdfReport(flattenedData, fieldNames);
         } catch (error) {
@@ -31,31 +31,17 @@ export class ReportService {
     private preparePdfData(events: SystemEvent[], fieldNames: { text: string, style: string }[]): any[] {
         return events.map(event => {
             const flatEvent = this.flattenObj(event)
-            log(flatEvent)
-            const row: any[] = [];
+            const row: string[] = [];
             fieldNames.forEach(field => {
                 const originalFieldName = this.getOriginalFieldName(field.text);
-                log(originalFieldName)
-                // Ищем значение в плоском объекте
+
                 let value = '';
                 for (const key in flatEvent) {
                     if (key.toLowerCase().endsWith(originalFieldName.toLowerCase())) {
                         value = flatEvent[key];
-                        log(value)
                         break;
                     }
                 }
-
-                const valueAny: any = value;
-
-                if (valueAny instanceof Date) {
-                    value = value.toLocaleString();
-                } else if (value === null || value === undefined) {
-                    value = '';
-                } else {
-                    value = String(value);
-                }
-
                 row.push(value);
             });
 
@@ -93,7 +79,6 @@ export class ReportService {
             'Статус файла': 'status',
             'Дополнительные атрибуты': 'extendedAttributes'
         };
-
         return fieldMap[displayName] || displayName.toLowerCase().replace(/\s+/g, '');
     }
 
@@ -185,13 +170,12 @@ export class ReportService {
 
         const printer = new PdfPrinter(fonts);
         const headers = fieldNames.map(f => f.text);
+
         const tableBody = [
             headers,
             ...data
         ];
-
         const columnCount = fieldNames.length;
-
         const widths = new Array(columnCount).fill('*');
 
         const docDefinition: TDocumentDefinitions = {
@@ -206,13 +190,6 @@ export class ReportService {
                         body: tableBody
                     },
                     layout: {
-                        paddingLeft: () => 5,
-                        paddingRight: () => 5,
-                        paddingTop: () => 3,
-                        paddingBottom: () => 3,
-                        // Автоматический перенос слов
-                        hLineWidth: () => 0.5,
-                        vLineWidth: () => 0.5,
                         fillColor: (rowIndex) => {
                             return rowIndex === 0 ? '#CCCCCC' : (rowIndex % 2 === 0 ? '#F5F5F5' : null);
                         }
@@ -230,7 +207,6 @@ export class ReportService {
                     fontSize: 10,
                     margin: [0, 0, 0, 10],
                     alignment: 'center',
-
                 },
                 tableHeader: {
                     bold: true,
@@ -243,9 +219,7 @@ export class ReportService {
                 fontSize: 5
             },
             pageSize: 'A4',
-            // pageMargins: [40, 60, 40, 60]
         };
-
         return printer.createPdfKitDocument(docDefinition);
     }
 }
