@@ -12,19 +12,20 @@ export class ReportController {
     router: Router
     reportService: ReportService
     initializeRoutes() {
-        this.router.get(`/`, this.getEvents.bind(this))
+        this.router.get(`/pdf`, this.exportPdf.bind(this))
     }
 
 
-    async getEvents(req: Request, res: Response) {
+    async exportPdf(req: Request, res: Response) {
         const pdfDoc = await this.reportService.getEvents()
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
         pdfDoc.pipe(res)
         pdfDoc.end();
         // res.json(pdfDoc)
-
     }
+
+ 
     getRouter() {
         return this.router;
     }
