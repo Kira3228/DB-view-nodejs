@@ -13,6 +13,7 @@ export class ReportController {
     reportService: ReportService
     initializeRoutes() {
         this.router.get(`/pdf`, this.exportPdf.bind(this))
+        this.router.get(`/docx`, this.exportDocx.bind(this))
     }
 
 
@@ -26,9 +27,28 @@ export class ReportController {
     }
 
     async exportDocx(req: Request, res: Response) {
+    try {
+        const docBuffer = await this.reportService.generateDocxReport();
         
+        // Проверка (должно проходить теперь)
+     
 
+        res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        );
+        res.setHeader(
+            "Content-Disposition", 
+            "attachment; filename=report.docx"
+        );
+        
+        res.end(docBuffer);
+    } catch (error) {
+        console.error("Ошибка генерации DOCX:", error);
+        res.status(500).send("Не удалось создать файл");
     }
+}
+
     getRouter() {
         return this.router;
     }

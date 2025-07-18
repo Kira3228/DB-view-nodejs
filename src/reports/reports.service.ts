@@ -2,8 +2,12 @@ import { getRepository } from "typeorm/globals.js";
 import { SystemEvent } from "../entities/system_events.entity";
 import { TDocumentDefinitions, TFontDictionary } from "pdfmake/interfaces";
 import * as path from 'path';
+import * as fs from 'fs'
 import PdfPrinter from "pdfmake";
 import { field, SystemEventFlags } from "./report-config";
+import { AlignmentType, Document, HeadingLevel, ITableOptions, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
+import { log } from "console";
+import Docxtemplater from 'docxtemplater'
 
 export class ReportService {
     private reportRepo = getRepository(SystemEvent);
@@ -222,4 +226,86 @@ export class ReportService {
         };
         return printer.createPdfKitDocument(docDefinition);
     }
+
+    async generateDocxReport() {
+
+
+        const doc = new Document();
+        const row1 = new TableRow({
+            children: [
+                new TableCell({
+                    width: {
+                        size: 5000,
+                        type: WidthType.DXA
+                    },
+                    children: [
+                        new Paragraph(
+                            `Хелло`
+                        )
+                    ]
+                }),
+                new TableCell({
+                    width: {
+                        size: 5000,
+                        type: WidthType.DXA
+                    },
+                    children: [
+                        new Paragraph(
+                            `БОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТ`
+                        )
+                    ]
+                }),
+                new TableCell({
+                    width: {
+                        size: 5000,
+                        type: WidthType.DXA
+                    },
+                    children: [
+                        new Paragraph(
+                            `Хелло`
+                        )
+                    ]
+                }),
+                new TableCell({
+                    width: {
+                        size: 5000,
+                        type: WidthType.DXA
+                    },
+                    children: [
+                        new Paragraph(
+                            "БОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТ"
+                        )
+                    ]
+                })
+            ]
+        }
+        );
+        const table = new Table({
+            columnWidths: [10, 10],
+            rows: [row1]
+        })
+        doc.addSection({
+            properties: {},
+            children: [
+                new Paragraph({
+                    children: [
+                        new TextRun("Hello World"),
+
+
+                    ],
+                }),
+                table
+            ],
+        });
+        const buf = Buffer.from(`hello`, 'utf8')
+        log(buf)
+        Packer.toBuffer(doc).then((buffer) => {
+            fs.writeFileSync("My Document.docx", buffer);
+        });
+    }
+
+    async qweqwe() {
+
+    }
+
 }
