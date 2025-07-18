@@ -25,7 +25,10 @@ export class ReportController {
         // res.json(pdfDoc)
     }
 
- 
+    async exportDocx(req: Request, res: Response) {
+        
+
+    }
     getRouter() {
         return this.router;
     }
