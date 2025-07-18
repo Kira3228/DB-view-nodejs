@@ -1,0 +1,225 @@
+import { getRepository } from "typeorm/globals.js";
+import { SystemEvent } from "../entities/system_events.entity";
+import { TDocumentDefinitions, TFontDictionary } from "pdfmake/interfaces";
+import * as path from 'path';
+import PdfPrinter from "pdfmake";
+import { field, SystemEventFlags } from "./report-config";
+
+export class ReportService {
+    private reportRepo = getRepository(SystemEvent);
+    private readonly robotoFontPath = path.resolve(__dirname, '../assets/Roboto.ttf');
+
+    async getEvents() {
+        try {
+            const { selectFields, fieldNames } = this.buildEventSelect(field);
+
+            const events = await this.reportRepo
+                .createQueryBuilder('event')
+                .leftJoinAndSelect('event.relatedFileId', 'file')
+                .leftJoinAndSelect('event.relatedProcessId', 'process')
+                .select(selectFields)
+                .getMany();
+
+            const flattenedData = this.preparePdfData(events, fieldNames);
+            return this.generatePdfReport(flattenedData, fieldNames);
+        } catch (error) {
+            console.error('Error in getEvents:', error);
+            throw error;
+        }
+    }
+
+    private preparePdfData(events: SystemEvent[], fieldNames: { text: string, style: string }[]): any[] {
+        return events.map(event => {
+            const flatEvent = this.flattenObj(event)
+            const row: string[] = [];
+            fieldNames.forEach(field => {
+                const originalFieldName = this.getOriginalFieldName(field.text);
+
+                let value = '';
+                for (const key in flatEvent) {
+                    if (key.toLowerCase().endsWith(originalFieldName.toLowerCase())) {
+                        value = flatEvent[key];
+                        break;
+                    }
+                }
+                row.push(value);
+            });
+
+
+            return row;
+        });
+    }
+    private getOriginalFieldName(displayName: string): string {
+        const fieldMap: Record<string, string> = {
+            'ID события': 'id',
+            'Тип события': 'eventType',
+            'Данные события': 'eventData',
+            'Важность': 'severity',
+            'Источник': 'source',
+            'Время события': 'timestamp',
+            'ID процесса': 'ProcessId_id',
+            'PID процесса': 'pid',
+            'Путь к исполняемому файлу': 'executablePath',
+            'Командная строка': 'commandLine',
+            'Родительский PID': 'parentPid',
+            'ID группы': 'groupId',
+            'Дата создания процесса': 'ProcessId_createdAt',
+            'Время запуска': 'processStartTime',
+            'ID файла': 'FileId_id',
+            'ID файловой системы': 'fileSystemId',
+            'Inode': 'inode',
+            'Путь к файлу': 'filePath',
+            'Имя файла': 'fileName',
+            'Размер файла': 'fileSize',
+            'Дата создания файла': 'FileId_createdAt',
+            'Дата изменения': 'modifiedAt',
+            'Родоначальник': 'isOriginalMarked',
+            'Макс. глубина цепочки': 'maxChainDepth',
+            'Мин. глубина цепочки': 'minChainDepth',
+            'Статус файла': 'status',
+            'Дополнительные атрибуты': 'extendedAttributes'
+        };
+        return fieldMap[displayName] || displayName.toLowerCase().replace(/\s+/g, '');
+    }
+
+    private flattenObj(obj: any, prefix: string = ''): any {
+        const result: any = {};
+
+        for (const key in obj) {
+
+            if (obj.hasOwnProperty(key) && obj[key] !== undefined) {
+                const value = obj[key];
+                const newKey = prefix ? `${prefix}_${key}` : key;
+                if (value instanceof Date) {
+                    result[newKey] = value.toISOString().replace('T', ' ').replace('.000Z', '');
+                }
+                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                    Object.assign(result, this.flattenObj(value, newKey));
+                } else {
+                    result[newKey] = value;
+                }
+            }
+        }
+        return result;
+    }
+
+    private buildEventSelect(field: SystemEventFlags<SystemEvent>) {
+        const selectFields: string[] = [];
+        const fieldNames: { text: string; style: string }[] = [];
+
+        this.addFieldConditionally(field, 'id', 'event', 'ID события', selectFields, fieldNames);
+        this.addFieldConditionally(field, 'eventType', 'event', 'Тип события', selectFields, fieldNames);
+        this.addFieldConditionally(field, 'eventData', 'event', 'Данные события', selectFields, fieldNames);
+        this.addFieldConditionally(field, 'severity', 'event', 'Важность', selectFields, fieldNames);
+        this.addFieldConditionally(field, 'source', 'event', 'Источник', selectFields, fieldNames);
+        this.addFieldConditionally(field, 'timestamp', 'event', 'Время события', selectFields, fieldNames);
+
+        if (field.relatedProcessId) {
+            this.addFieldConditionally(field.relatedProcessId, 'id', 'process', 'ID процесса', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedProcessId, 'pid', 'process', 'PID процесса', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedProcessId, 'executablePath', 'process', 'Путь к исполняемому файлу', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedProcessId, 'commandLine', 'process', 'Командная строка', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedProcessId, 'parentPid', 'process', 'Родительский PID', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedProcessId, 'groupId', 'process', 'ID группы', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedProcessId, 'createdAt', 'process', 'Дата создания процесса', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedProcessId, 'processStartTime', 'process', 'Время запуска', selectFields, fieldNames);
+        }
+
+        if (field.relatedFileId) {
+            this.addFieldConditionally(field.relatedFileId, 'id', 'file', 'ID файла', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'fileSystemId', 'file', 'ID файловой системы', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'inode', 'file', 'Inode', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'filePath', 'file', 'Путь к файлу', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'fileName', 'file', 'Имя файла', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'fileSize', 'file', 'Размер файла', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'createdAt', 'file', 'Дата создания файла', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'modifiedAt', 'file', 'Дата изменения', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'isOriginalMarked', 'file', 'Родоначальник', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'maxChainDepth', 'file', 'Макс. глубина цепочки', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'minChainDepth', 'file', 'Мин. глубина цепочки', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'status', 'file', 'Статус файла', selectFields, fieldNames);
+            this.addFieldConditionally(field.relatedFileId, 'extendedAttributes', 'file', 'Дополнительные атрибуты', selectFields, fieldNames);
+        }
+        return { selectFields, fieldNames };
+    }
+
+    private addFieldConditionally(
+        fieldConfig: any,
+        fieldName: string,
+        entityPrefix: string,
+        displayName: string,
+        selectFields: string[],
+        fieldNames: { text: string; style: string }[]
+    ) {
+        if (fieldConfig[fieldName]) {
+            selectFields.push(`${entityPrefix}.${fieldName}`);
+            fieldNames.push({ text: displayName, style: 'tableHeader' });
+        }
+    }
+
+    private generatePdfReport(data: any[], fieldNames: any[]): PDFKit.PDFDocument {
+
+        const fonts: TFontDictionary = {
+            Roboto: {
+                normal: this.robotoFontPath,
+                bold: this.robotoFontPath,
+                italics: this.robotoFontPath,
+                bolditalics: this.robotoFontPath
+            }
+        };
+
+        const printer = new PdfPrinter(fonts);
+        const headers = fieldNames.map(f => f.text);
+
+        const tableBody = [
+            headers,
+            ...data
+        ];
+        const columnCount = fieldNames.length;
+        const widths = new Array(columnCount).fill('*');
+
+        const docDefinition: TDocumentDefinitions = {
+            content: [
+                { text: 'Отчёт по событиям системы', style: 'header' },
+                { text: `Сгенерировано: ${new Date().toLocaleString()}`, style: 'subheader' },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: widths,
+                        dontBreakRows: true,
+                        body: tableBody
+                    },
+                    layout: {
+                        fillColor: (rowIndex) => {
+                            return rowIndex === 0 ? '#CCCCCC' : (rowIndex % 2 === 0 ? '#F5F5F5' : null);
+                        }
+                    }
+                }
+            ],
+            styles: {
+                header: {
+                    fontSize: 18,
+                    bold: true,
+                    margin: [0, 0, 0, 10],
+                    alignment: 'center'
+                },
+                subheader: {
+                    fontSize: 10,
+                    margin: [0, 0, 0, 10],
+                    alignment: 'center',
+                },
+                tableHeader: {
+                    bold: true,
+                    fontSize: 8,
+                    color: 'black'
+                }
+            },
+            defaultStyle: {
+                font: 'Roboto',
+                fontSize: 5
+            },
+            pageSize: 'A4',
+        };
+        return printer.createPdfKitDocument(docDefinition);
+    }
+}

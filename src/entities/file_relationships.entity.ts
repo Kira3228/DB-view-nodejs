@@ -8,11 +8,11 @@ import {
 } from 'typeorm';
 import { MonitoredFile } from './monitored_file.entity';
 import { ProcessVersion } from './process_version.entity';
-@Index('idx_file_relationships_parent', ['parentId'])
-@Index('idx_file_relationships_child', ['childrenId'])
+@Index('idx_file_relationships_parent', ['parentFile'])
+@Index('idx_file_relationships_child', ['childFile'])
 @Index(
   `PARENT_ID_CHILD_FILE_ID_RELATIONSHIP_TYPE`,
-  [`parentId`, `childrenId`, `version`],
+  [`parentFile`, `childFile`, `version`],
   {
     unique: true,
   },
@@ -31,14 +31,19 @@ export class FileRelationship {
     default: () => `CURRENT_TIMESTAMP`,
   })
   createdAt: Date;
+  
+  @Column({ name: 'parent_file_id' })
+  parentFileId: number;
 
-  @ManyToOne(() => MonitoredFile, (file) => file.parentRelation)
+  @Column({ name: 'child_file_id' })
+  childFileId: number;
+  @ManyToOne(() => MonitoredFile, (file) => file.parentRelations)
   @JoinColumn({ name: `parent_file_id` })
-  parentId: MonitoredFile;
+  parentFile: MonitoredFile;
 
-  @ManyToOne(() => MonitoredFile, (file) => file.childRelation)
+  @ManyToOne(() => MonitoredFile, (file) => file.childRelations)
   @JoinColumn({ name: `child_file_id` })
-  childrenId: MonitoredFile;
+  childFile: MonitoredFile;
 
   @ManyToOne(() => ProcessVersion, (version) => version.relationship)
   @JoinColumn({ name: `process_version_id` })

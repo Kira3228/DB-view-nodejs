@@ -11,8 +11,11 @@
     "node": "<10.24.0"
   },
   "dependencies": {
+    "@types/pdfmake": "^0.2.11",
+    "cors": "^2.8.5",
     "express": "^4.17.1",
     "nodemon": "^3.1.10",
+    "pdfmake": "^0.1.71",
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.1.7",
     "typeorm": "0.2.45"

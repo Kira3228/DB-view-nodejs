@@ -87,10 +87,11 @@ export class MonitoredFile {
   @OneToMany(() => FileAccessEvent, (access) => access.file)
   access: FileAccessEvent[];
 
-  @OneToMany(() => FileRelationship, (file) => file.parentId)
-  parentRelation: FileRelationship[];
-  @OneToMany(() => FileRelationship, (file) => file.childrenId)
-  childRelation: FileRelationship[];
+  @OneToMany(() => FileRelationship, (file) => file.parentFile)
+  parentRelations: FileRelationship[];
+
+  @OneToMany(() => FileRelationship, (file) => file.childFile)
+  childRelations: FileRelationship[];
 
   @OneToMany(() => FileOrigin, (origin) => origin.file)
   origins: FileOrigin[];
