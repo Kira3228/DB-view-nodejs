@@ -14,8 +14,8 @@ export class ReportController {
     initializeRoutes() {
         this.router.get(`/pdf`, this.exportPdf.bind(this))
         this.router.get(`/docx`, this.exportDocx.bind(this))
+        this.router.get(`/xlsx`, this.exportXlsx.bind(this))
     }
-
 
     async exportPdf(req: Request, res: Response) {
         const pdfDoc = await this.reportService.getEvents()
@@ -43,7 +43,23 @@ export class ReportController {
             res.status(500).send("Не удалось создать файл");
         }
     }
+    async exportXlsx(req: Request, res: Response) {
+        try {
+            const buffer = await this.reportService.generateXlsxReport()
 
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename=report.xlsx`);
+            res.send(buffer);
+
+
+
+
+            res.end();
+        } catch (error) {
+            console.error("Ошибка генерации XLSX:", error);
+            res.status(500).send("Не удалось создать файл");
+        }
+    }
     getRouter() {
         return this.router;
     }
