@@ -5,9 +5,10 @@ import * as path from 'path';
 import * as fs from 'fs'
 import PdfPrinter from "pdfmake";
 import { field, SystemEventFlags } from "./report-config";
-import { AlignmentType, Document, HeadingLevel, ITableOptions, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
+import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import { log } from "console";
-import Docxtemplater from 'docxtemplater'
+import { fileURLToPath } from "url";
+
 
 export class ReportService {
     private reportRepo = getRepository(SystemEvent);
@@ -229,82 +230,74 @@ export class ReportService {
 
     async generateDocxReport() {
 
+        const { selectFields, fieldNames } = this.buildEventSelect(field);
 
-        const doc = new Document();
-        const row1 = new TableRow({
-            children: [
-                new TableCell({
+        const events = await this.reportRepo
+            .createQueryBuilder('event')
+            .leftJoinAndSelect('event.relatedFileId', 'file')
+            .leftJoinAndSelect('event.relatedProcessId', 'process')
+            .select(selectFields)
+            .getMany();
+
+
+        const flattenedData = this.preparePdfData(events, fieldNames);
+
+        log(flattenedData)
+
+        return this.generateDocx(fieldNames, flattenedData)
+
+    }
+    private async generateDocx(fieldNames: any[], flattenDatd: any[]) {
+        const doc = new Document()
+        const tableHeaders = fieldNames.map((field) => {
+            log(field.text)
+            return new TableCell({
+                width: {
+                    size: 5000,
+                    type: WidthType.DXA
+                },
+                children: [
+                    new Paragraph(field.text)
+                ]
+            })
+        })
+        const headerRow = new TableRow({
+            children: tableHeaders
+        })
+
+
+        const tableBody = flattenDatd.map((row) => {
+            const cells = row.map(cell => {
+                return new TableCell({
                     width: {
                         size: 5000,
                         type: WidthType.DXA
                     },
                     children: [
-                        new Paragraph(
-                            `Хелло`
-                        )
-                    ]
-                }),
-                new TableCell({
-                    width: {
-                        size: 5000,
-                        type: WidthType.DXA
-                    },
-                    children: [
-                        new Paragraph(
-                            `БОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТ`
-                        )
-                    ]
-                }),
-                new TableCell({
-                    width: {
-                        size: 5000,
-                        type: WidthType.DXA
-                    },
-                    children: [
-                        new Paragraph(
-                            `Хелло`
-                        )
-                    ]
-                }),
-                new TableCell({
-                    width: {
-                        size: 5000,
-                        type: WidthType.DXA
-                    },
-                    children: [
-                        new Paragraph(
-                            "БОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТБОЛЬШОЙ ТЕКСТ"
-                        )
+                        new Paragraph(cell)
                     ]
                 })
-            ]
-        }
-        );
+            })
+            return new TableRow({ children: cells })
+        })
         const table = new Table({
-            columnWidths: [10, 10],
-            rows: [row1]
+            rows: [headerRow, ...tableBody]
         })
         doc.addSection({
-            properties: {},
-            children: [
-                new Paragraph({
-                    children: [
-                        new TextRun("Hello World"),
+            children: [table]
+        })
+        // Packer.toBuffer(doc).then((buffer) => {
+        //     fs.writeFileSync("My Document.docx", buffer);
+        // });
 
+        try {
+            const buffer = await Packer.toBuffer(doc);
+            return Buffer.from(buffer); // Явное преобразование в Buffer
+        } catch (error) {
+            console.error('DOCX generation error:', error);
+            throw new Error('Failed to generate DOCX file');
+        }
 
-                    ],
-                }),
-                table
-            ],
-        });
-        const buf = Buffer.from(`hello`, 'utf8')
-        log(buf)
-        Packer.toBuffer(doc).then((buffer) => {
-            fs.writeFileSync("My Document.docx", buffer);
-        });
-    }
-
-    async qweqwe() {
 
     }
 

@@ -23,31 +23,26 @@ export class ReportController {
         res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
         pdfDoc.pipe(res)
         pdfDoc.end();
-        // res.json(pdfDoc)
     }
 
     async exportDocx(req: Request, res: Response) {
-    try {
-        const docBuffer = await this.reportService.generateDocxReport();
-        
-        // Проверка (должно проходить теперь)
-     
+        try {
+            const buffer = await this.reportService.generateDocxReport();
+            if (!Buffer.isBuffer(buffer)) {
+                throw new Error('Generated content is not a valid Buffer');
+            }
 
-        res.setHeader(
-            "Content-Type",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        );
-        res.setHeader(
-            "Content-Disposition", 
-            "attachment; filename=report.docx"
-        );
-        
-        res.end(docBuffer);
-    } catch (error) {
-        console.error("Ошибка генерации DOCX:", error);
-        res.status(500).send("Не удалось создать файл");
+            res.set({
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'Content-Disposition': 'attachment; filename=report.docx',
+                'Content-Length': buffer.length
+            });
+            res.end(buffer);
+        } catch (error) {
+            console.error("Ошибка генерации DOCX:", error);
+            res.status(500).send("Не удалось создать файл");
+        }
     }
-}
 
     getRouter() {
         return this.router;
