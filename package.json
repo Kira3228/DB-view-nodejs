@@ -20,7 +20,8 @@
     "pdfmake": "^0.1.71",
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.1.7",
-    "typeorm": "0.2.45"
+    "typeorm": "0.2.45",
+    "xlsx": "^0.16.9"
   },
   "devDependencies": {
     "@types/express": "^4.17.13",

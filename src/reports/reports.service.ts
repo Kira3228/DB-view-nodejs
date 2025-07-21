@@ -7,8 +7,11 @@ import PdfPrinter from "pdfmake";
 import { field, SystemEventFlags } from "./report-config";
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import { log } from "console";
-import { fileURLToPath } from "url";
+import XLSX from 'xlsx'
 
+interface ExcelData {
+    [key: string]: string | number;
+}
 
 export class ReportService {
     private reportRepo = getRepository(SystemEvent);
@@ -299,6 +302,40 @@ export class ReportService {
         }
 
 
+    }
+
+    async generateXlsxReport() {
+        const { selectFields, fieldNames } = this.buildEventSelect(field);
+
+        const events = await this.reportRepo
+            .createQueryBuilder('event')
+            .leftJoinAndSelect('event.relatedFileId', 'file')
+            .leftJoinAndSelect('event.relatedProcessId', 'process')
+            .select(selectFields)
+            .getMany();
+
+
+        const flattenedData = this.preparePdfData(events, fieldNames);
+        log(flattenedData)
+        return this.generateXLSX(flattenedData, fieldNames);
+    }
+
+    private async generateXLSX(flattenData: any[], fieldNames: any[]) {
+        const arrayOfHeaders: any[] = fieldNames.map(field => {
+            return field.text
+        })
+        const data: any[][] = [arrayOfHeaders, ...flattenData]
+        const workbook = XLSX.utils.book_new()
+        const worksheet = XLSX.utils.aoa_to_sheet(data)
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, `Sheet1`)
+
+        const buffer = XLSX.write(workbook, {
+            type: 'buffer',
+            bookType: 'xlsx',
+        }) as Buffer;
+
+        return buffer
     }
 
 }

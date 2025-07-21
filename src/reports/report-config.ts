@@ -32,6 +32,7 @@ export const field: SystemEventFlags<SystemEvent> = {
     id: true,
     eventType: true,
     relatedProcessId: {
+        groupId: true,
         pid: true,
         id: true,
         createdAt: true
