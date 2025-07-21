@@ -2,41 +2,59 @@ import { getRepository } from "typeorm/globals.js";
 import { SystemEvent } from "../entities/system_events.entity";
 import { TDocumentDefinitions, TFontDictionary } from "pdfmake/interfaces";
 import * as path from 'path';
-import * as fs from 'fs'
 import PdfPrinter from "pdfmake";
-import { field, SystemEventFlags } from "./report-config";
-import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
-import { log } from "console";
+import { AlignmentType, Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import XLSX from 'xlsx'
+import { ReportDto } from "./report.dto";
 
-interface ExcelData {
-    [key: string]: string | number;
-}
+type TableHeader = { text: string; style: string }
+
+type DeepPartialFlags<T> = {
+    [K in keyof T]?:
+    T[K] extends object
+    ? DeepPartialFlags<T[K]>
+    : boolean | string;
+};
 
 export class ReportService {
     private reportRepo = getRepository(SystemEvent);
     private readonly robotoFontPath = path.resolve(__dirname, '../assets/Roboto.ttf');
 
-    async getEvents() {
-        try {
-            const { selectFields, fieldNames } = this.buildEventSelect(field);
+    async getPdfReport(filters: Partial<ReportDto>) {
+        const { selectFields, fieldNames } = this.buildEventSelect(filters);
+        const events = await this.getEvents(selectFields)
+        const flattenedData = this.preparePdfData(events, fieldNames);
+        return this.generatePdf(flattenedData, fieldNames);
+    }
 
+    async getDocxReport(filters: Partial<ReportDto>) {
+        const { selectFields, fieldNames } = this.buildEventSelect(filters);
+        const events = await this.getEvents(selectFields)
+        const flattenedData = this.preparePdfData(events, fieldNames);
+        return this.generateDocx(flattenedData, fieldNames)
+    }
+    async getXlsxReport(filters: Partial<ReportDto>) {
+        const { selectFields, fieldNames } = this.buildEventSelect(filters);
+        const events = await this.getEvents(selectFields)
+        const flattenedData = this.preparePdfData(events, fieldNames);
+        return this.generateXlsx(flattenedData, fieldNames)
+    }
+    private async getEvents(selectFields: string[]) {
+        try {
             const events = await this.reportRepo
                 .createQueryBuilder('event')
                 .leftJoinAndSelect('event.relatedFileId', 'file')
                 .leftJoinAndSelect('event.relatedProcessId', 'process')
                 .select(selectFields)
                 .getMany();
-
-            const flattenedData = this.preparePdfData(events, fieldNames);
-            return this.generatePdfReport(flattenedData, fieldNames);
+            return events
         } catch (error) {
             console.error('Error in getEvents:', error);
             throw error;
         }
     }
 
-    private preparePdfData(events: SystemEvent[], fieldNames: { text: string, style: string }[]): any[] {
+    private preparePdfData(events: SystemEvent[], fieldNames: { text: string, style: string }[]): string[][] {
         return events.map(event => {
             const flatEvent = this.flattenObj(event)
             const row: string[] = [];
@@ -52,8 +70,6 @@ export class ReportService {
                 }
                 row.push(value);
             });
-
-
             return row;
         });
     }
@@ -111,9 +127,9 @@ export class ReportService {
         return result;
     }
 
-    private buildEventSelect(field: SystemEventFlags<SystemEvent>) {
+    private buildEventSelect(field: DeepPartialFlags<SystemEvent>) {
         const selectFields: string[] = [];
-        const fieldNames: { text: string; style: string }[] = [];
+        const fieldNames: TableHeader[] = [];
 
         this.addFieldConditionally(field, 'id', 'event', 'ID события', selectFields, fieldNames);
         this.addFieldConditionally(field, 'eventType', 'event', 'Тип события', selectFields, fieldNames);
@@ -152,7 +168,7 @@ export class ReportService {
     }
 
     private addFieldConditionally(
-        fieldConfig: any,
+        fieldConfig: DeepPartialFlags<SystemEvent>,
         fieldName: string,
         entityPrefix: string,
         displayName: string,
@@ -165,7 +181,7 @@ export class ReportService {
         }
     }
 
-    private generatePdfReport(data: any[], fieldNames: any[]): PDFKit.PDFDocument {
+    private generatePdf(flattenDatd: string[][], fieldNames: TableHeader[]): PDFKit.PDFDocument {
 
         const fonts: TFontDictionary = {
             Roboto: {
@@ -181,9 +197,11 @@ export class ReportService {
 
         const tableBody = [
             headers,
-            ...data
+            ...flattenDatd
         ];
+
         const columnCount = fieldNames.length;
+
         const widths = new Array(columnCount).fill('*');
 
         const docDefinition: TDocumentDefinitions = {
@@ -231,29 +249,34 @@ export class ReportService {
         return printer.createPdfKitDocument(docDefinition);
     }
 
-    async generateDocxReport() {
-
-        const { selectFields, fieldNames } = this.buildEventSelect(field);
-
-        const events = await this.reportRepo
-            .createQueryBuilder('event')
-            .leftJoinAndSelect('event.relatedFileId', 'file')
-            .leftJoinAndSelect('event.relatedProcessId', 'process')
-            .select(selectFields)
-            .getMany();
-
-
-        const flattenedData = this.preparePdfData(events, fieldNames);
-
-        log(flattenedData)
-
-        return this.generateDocx(fieldNames, flattenedData)
-
-    }
-    private async generateDocx(fieldNames: any[], flattenDatd: any[]) {
+    private async generateDocx(flattenDatd: string[][], fieldNames: TableHeader[]) {
         const doc = new Document()
+
+
+
+        const header = new Paragraph({
+            children: [
+                new TextRun({
+                    bold: true,
+                    size: 48,
+                    text: `Отчёт по событиям системы`,
+                })
+            ],
+            alignment: AlignmentType.CENTER
+        })
+        const subHeader = new Paragraph({
+            children: [
+                new TextRun({
+                    size: 28,
+                    text: `Сгенерировано: ${new Date().toLocaleString()}`,
+                })
+            ],
+            alignment: AlignmentType.CENTER
+
+
+        })
+
         const tableHeaders = fieldNames.map((field) => {
-            log(field.text)
             return new TableCell({
                 width: {
                     size: 5000,
@@ -264,10 +287,10 @@ export class ReportService {
                 ]
             })
         })
+
         const headerRow = new TableRow({
             children: tableHeaders
         })
-
 
         const tableBody = flattenDatd.map((row) => {
             const cells = row.map(cell => {
@@ -277,54 +300,39 @@ export class ReportService {
                         type: WidthType.DXA
                     },
                     children: [
-                        new Paragraph(cell)
+                        new Paragraph(String(cell))
                     ]
                 })
             })
+
             return new TableRow({ children: cells })
         })
+
         const table = new Table({
             rows: [headerRow, ...tableBody]
         })
+
         doc.addSection({
-            children: [table]
+
+            children: [header, subHeader, table]
         })
-        // Packer.toBuffer(doc).then((buffer) => {
-        //     fs.writeFileSync("My Document.docx", buffer);
-        // });
 
         try {
             const buffer = await Packer.toBuffer(doc);
-            return Buffer.from(buffer); // Явное преобразование в Buffer
+            return Buffer.from(buffer);
         } catch (error) {
             console.error('DOCX generation error:', error);
             throw new Error('Failed to generate DOCX file');
         }
-
-
     }
 
-    async generateXlsxReport() {
-        const { selectFields, fieldNames } = this.buildEventSelect(field);
+    private async generateXlsx(flattenData: string[][], fieldNames: TableHeader[],) {
 
-        const events = await this.reportRepo
-            .createQueryBuilder('event')
-            .leftJoinAndSelect('event.relatedFileId', 'file')
-            .leftJoinAndSelect('event.relatedProcessId', 'process')
-            .select(selectFields)
-            .getMany();
-
-
-        const flattenedData = this.preparePdfData(events, fieldNames);
-        log(flattenedData)
-        return this.generateXLSX(flattenedData, fieldNames);
-    }
-
-    private async generateXLSX(flattenData: any[], fieldNames: any[]) {
-        const arrayOfHeaders: any[] = fieldNames.map(field => {
+        const arrayOfHeaders: string[] = fieldNames.map(field => {
             return field.text
         })
-        const data: any[][] = [arrayOfHeaders, ...flattenData]
+
+        const data: string[][] = [arrayOfHeaders, ...flattenData]
         const workbook = XLSX.utils.book_new()
         const worksheet = XLSX.utils.aoa_to_sheet(data)
 

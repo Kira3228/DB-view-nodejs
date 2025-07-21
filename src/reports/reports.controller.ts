@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import { ReportService } from "./reports.service";
 import { log } from "console";
+import { ReportDto } from "./report.dto";
 const express = require('express');
 
 export class ReportController {
@@ -18,7 +19,9 @@ export class ReportController {
     }
 
     async exportPdf(req: Request, res: Response) {
-        const pdfDoc = await this.reportService.getEvents()
+        const filters: Partial<ReportDto> = { ...req.query }
+
+        const pdfDoc = await this.reportService.getPdfReport(filters)
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
         pdfDoc.pipe(res)
@@ -27,11 +30,12 @@ export class ReportController {
 
     async exportDocx(req: Request, res: Response) {
         try {
-            const buffer = await this.reportService.generateDocxReport();
+            const filters: Partial<ReportDto> = { ...req.query }
+
+            const buffer = await this.reportService.getDocxReport(filters);
             if (!Buffer.isBuffer(buffer)) {
                 throw new Error('Generated content is not a valid Buffer');
             }
-
             res.set({
                 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'Content-Disposition': 'attachment; filename=report.docx',
@@ -45,15 +49,12 @@ export class ReportController {
     }
     async exportXlsx(req: Request, res: Response) {
         try {
-            const buffer = await this.reportService.generateXlsxReport()
+            const filters: Partial<ReportDto> = { ...req.query }
 
+            const buffer = await this.reportService.getXlsxReport(filters)
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.setHeader('Content-Disposition', `attachment; filename=report.xlsx`);
             res.send(buffer);
-
-
-
-
             res.end();
         } catch (error) {
             console.error("Ошибка генерации XLSX:", error);
