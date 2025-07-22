@@ -6,6 +6,7 @@ import PdfPrinter from "pdfmake";
 import { AlignmentType, Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import XLSX from 'xlsx'
 import { ReportDto } from "./report.dto";
+import { log } from "console";
 
 type TableHeader = { text: string; style: string }
 
@@ -30,6 +31,7 @@ export class ReportService {
     async getDocxReport(filters: Partial<ReportDto>) {
         const { selectFields, fieldNames } = this.buildEventSelect(filters);
         const events = await this.getEvents(selectFields)
+        log(events)
         const flattenedData = this.preparePdfData(events, fieldNames);
         return this.generateDocx(flattenedData, fieldNames)
     }

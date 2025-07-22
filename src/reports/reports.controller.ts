@@ -30,8 +30,8 @@ export class ReportController {
 
     async exportDocx(req: Request, res: Response) {
         try {
-            const filters: Partial<ReportDto> = { ...req.query }
-
+            // const filters: Partial<ReportDto> = { ...req.query }
+            const filters = { ...req.query }
             const buffer = await this.reportService.getDocxReport(filters);
             if (!Buffer.isBuffer(buffer)) {
                 throw new Error('Generated content is not a valid Buffer');
