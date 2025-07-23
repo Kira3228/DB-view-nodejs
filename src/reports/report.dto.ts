@@ -35,3 +35,9 @@ class MonitoredFile {
     status: boolean
     extendedAttributes: boolean;
 }
+
+
+export class ReportFilters {
+    startDate: string
+    endDate: string
+}

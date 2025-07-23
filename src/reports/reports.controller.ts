@@ -1,7 +1,7 @@
 import { Request, Response, Router } from "express";
 import { ReportService } from "./reports.service";
 import { log } from "console";
-import { ReportDto } from "./report.dto";
+import { ReportDto, ReportFilters } from "./report.dto";
 const express = require('express');
 
 export class ReportController {
@@ -16,6 +16,9 @@ export class ReportController {
         this.router.get(`/pdf`, this.exportPdf.bind(this))
         this.router.get(`/docx`, this.exportDocx.bind(this))
         this.router.get(`/xlsx`, this.exportXlsx.bind(this))
+        this.router.get(`/chains/pdf`, this.distributionChainsExportPdf.bind(this))
+        this.router.get(`/chains/docx`, this.distributionChainsExportDocx.bind(this))
+        this.router.get(`/chains/xlsx`, this.distributionChainsExportXlsx.bind(this))
     }
 
     async exportPdf(req: Request, res: Response) {
@@ -30,7 +33,6 @@ export class ReportController {
 
     async exportDocx(req: Request, res: Response) {
         try {
-            // const filters: Partial<ReportDto> = { ...req.query }
             const filters = { ...req.query }
             const buffer = await this.reportService.getDocxReport(filters);
             if (!Buffer.isBuffer(buffer)) {
@@ -47,11 +49,59 @@ export class ReportController {
             res.status(500).send("Не удалось создать файл");
         }
     }
+
     async exportXlsx(req: Request, res: Response) {
         try {
             const filters: Partial<ReportDto> = { ...req.query }
 
             const buffer = await this.reportService.getXlsxReport(filters)
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename=report.xlsx`);
+            res.send(buffer);
+            res.end();
+        } catch (error) {
+            console.error("Ошибка генерации XLSX:", error);
+            res.status(500).send("Не удалось создать файл");
+        }
+    }
+
+    async distributionChainsExportPdf(req: Request, res: Response) {
+        try {
+            const filters: Partial<ReportFilters> = { ...req.query }
+            const pdfDoc = await this.reportService.getChainsPdf(filters)
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
+            pdfDoc.pipe(res)
+            pdfDoc.end();
+        }
+        catch (error) {
+            console.error("Ошибка генерации PDF:", error);
+            res.status(500).send("Не удалось создать файл");
+        }
+    }
+
+    async distributionChainsExportDocx(req: Request, res: Response) {
+        const filters: Partial<ReportFilters> = { ...req.query }
+        try {
+            const buffer = await this.reportService.getChainsDocx(filters);
+            if (!Buffer.isBuffer(buffer)) {
+                throw new Error('Generated content is not a valid Buffer');
+            }
+            res.set({
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'Content-Disposition': 'attachment; filename=report.docx',
+                'Content-Length': buffer.length
+            });
+            res.end(buffer);
+        } catch (error) {
+            console.error("Ошибка генерации DOCX:", error);
+            res.status(500).send("Не удалось создать файл");
+        }
+    }
+    async distributionChainsExportXlsx(req: Request, res: Response) {
+        try {
+            const filters: Partial<ReportFilters> = { ...req.query }
+            const buffer = await this.reportService.getChainsXlsx(filters)
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.setHeader('Content-Disposition', `attachment; filename=report.xlsx`);
             res.send(buffer);

@@ -19,16 +19,66 @@ class ReportController {
         this.initializeRoutes();
     }
     initializeRoutes() {
-        this.router.get(`/`, this.getEvents.bind(this));
+        this.router.get(`/pdf`, this.exportPdf.bind(this));
+        this.router.get(`/docx`, this.exportDocx.bind(this));
+        this.router.get(`/xlsx`, this.exportXlsx.bind(this));
+        this.router.get(`/chains`, this.distributionChainsExport.bind(this));
     }
-    getEvents(req, res) {
+    exportPdf(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            const pdfDoc = yield this.reportService.getEvents();
+            const filters = Object.assign({}, req.query);
+            const pdfDoc = yield this.reportService.getPdfReport(filters);
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
             pdfDoc.pipe(res);
             pdfDoc.end();
-            // res.json(pdfDoc)
+        });
+    }
+    exportDocx(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                // const filters: Partial<ReportDto> = { ...req.query }
+                const filters = Object.assign({}, req.query);
+                const buffer = yield this.reportService.getDocxReport(filters);
+                if (!Buffer.isBuffer(buffer)) {
+                    throw new Error('Generated content is not a valid Buffer');
+                }
+                res.set({
+                    'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'Content-Disposition': 'attachment; filename=report.docx',
+                    'Content-Length': buffer.length
+                });
+                res.end(buffer);
+            }
+            catch (error) {
+                console.error("Ошибка генерации DOCX:", error);
+                res.status(500).send("Не удалось создать файл");
+            }
+        });
+    }
+    exportXlsx(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const filters = Object.assign({}, req.query);
+                const buffer = yield this.reportService.getXlsxReport(filters);
+                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                res.setHeader('Content-Disposition', `attachment; filename=report.xlsx`);
+                res.send(buffer);
+                res.end();
+            }
+            catch (error) {
+                console.error("Ошибка генерации XLSX:", error);
+                res.status(500).send("Не удалось создать файл");
+            }
+        });
+    }
+    distributionChainsExport(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const pdfDoc = yield this.reportService.distributionChainsExport();
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
+            pdfDoc.pipe(res);
+            pdfDoc.end();
         });
     }
     getRouter() {

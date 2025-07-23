@@ -5,10 +5,17 @@ import * as path from 'path';
 import PdfPrinter from "pdfmake";
 import { AlignmentType, Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import XLSX from 'xlsx'
-import { ReportDto } from "./report.dto";
+import { ReportDto, ReportFilters } from "./report.dto";
 import { log } from "console";
+import { MonitoredFile } from "../entities/monitored_file.entity";
+import { FileRelationship } from "../entities/file_relationships.entity";
+import { endianness } from "os";
 
-type TableHeader = { text: string; style: string }
+type TableHeader = {
+    text: string
+    style: string
+};
+
 
 type DeepPartialFlags<T> = {
     [K in keyof T]?:
@@ -17,8 +24,18 @@ type DeepPartialFlags<T> = {
     : boolean | string;
 };
 
+type TChains = {
+    ancestorId: number;
+    ancestorPath: string;
+    pathChain: string[];
+    chainDepth: number;
+    createdAt: string;
+}
+
 export class ReportService {
     private reportRepo = getRepository(SystemEvent);
+    private filesRepo = getRepository(MonitoredFile)
+    private relationRepo = getRepository(FileRelationship)
     private readonly robotoFontPath = path.resolve(__dirname, '../assets/Roboto.ttf');
 
     async getPdfReport(filters: Partial<ReportDto>) {
@@ -35,12 +52,42 @@ export class ReportService {
         const flattenedData = this.preparePdfData(events, fieldNames);
         return this.generateDocx(flattenedData, fieldNames)
     }
+
     async getXlsxReport(filters: Partial<ReportDto>) {
         const { selectFields, fieldNames } = this.buildEventSelect(filters);
         const events = await this.getEvents(selectFields)
         const flattenedData = this.preparePdfData(events, fieldNames);
         return this.generateXlsx(flattenedData, fieldNames)
     }
+
+    async getChainsPdf(filters: Partial<ReportFilters>) {
+        const formatedDates = {
+            startDate: filters.startDate.replace("T", '').replace('.000Z', ''),
+            endDate: filters.endDate.replace("T", '').replace('.000Z', '')
+        }
+        const chains = await this.getChains()
+        return this.genearteChainsPdf(chains)
+
+    };
+
+    async getChainsDocx(filters: Partial<ReportFilters>) {
+        const formatedDates = {
+            startDate: filters.startDate.replace("T", '').replace('.000Z', ''),
+            endDate: filters.endDate.replace("T", '').replace('.000Z', '')
+        }
+        const chains = await this.getChains()
+        return await this.genearteChainsDocx(chains)
+    };
+
+    async getChainsXlsx(filters: Partial<ReportFilters>) {
+        const formatedDates = {
+            startDate: filters.startDate.replace("T", '').replace('.000Z', ''),
+            endDate: filters.endDate.replace("T", '').replace('.000Z', '')
+        }
+        const chains = await this.getChains()
+        return this.genearteChainsXlsx(chains)
+    };
+
     private async getEvents(selectFields: string[]) {
         try {
             const events = await this.reportRepo
@@ -48,6 +95,7 @@ export class ReportService {
                 .leftJoinAndSelect('event.relatedFileId', 'file')
                 .leftJoinAndSelect('event.relatedProcessId', 'process')
                 .select(selectFields)
+                .andWhere('event.timestamp BETWEEN :from AND :to', {})
                 .getMany();
             return events
         } catch (error) {
@@ -75,6 +123,7 @@ export class ReportService {
             return row;
         });
     }
+
     private getOriginalFieldName(displayName: string): string {
         const fieldMap: Record<string, string> = {
             'ID события': 'id',
@@ -184,7 +233,6 @@ export class ReportService {
     }
 
     private generatePdf(flattenDatd: string[][], fieldNames: TableHeader[]): PDFKit.PDFDocument {
-
         const fonts: TFontDictionary = {
             Roboto: {
                 normal: this.robotoFontPath,
@@ -251,11 +299,8 @@ export class ReportService {
         return printer.createPdfKitDocument(docDefinition);
     }
 
-    private async generateDocx(flattenDatd: string[][], fieldNames: TableHeader[]) {
+    private async generateDocx(flattenData: string[][], fieldNames: TableHeader[]) {
         const doc = new Document()
-
-
-
         const header = new Paragraph({
             children: [
                 new TextRun({
@@ -274,8 +319,6 @@ export class ReportService {
                 })
             ],
             alignment: AlignmentType.CENTER
-
-
         })
 
         const tableHeaders = fieldNames.map((field) => {
@@ -294,7 +337,7 @@ export class ReportService {
             children: tableHeaders
         })
 
-        const tableBody = flattenDatd.map((row) => {
+        const tableBody = flattenData.map((row) => {
             const cells = row.map(cell => {
                 return new TableCell({
                     width: {
@@ -329,10 +372,7 @@ export class ReportService {
     }
 
     private async generateXlsx(flattenData: string[][], fieldNames: TableHeader[],) {
-
-        const arrayOfHeaders: string[] = fieldNames.map(field => {
-            return field.text
-        })
+        const arrayOfHeaders: string[] = fieldNames.map(field => field.text)
 
         const data: string[][] = [arrayOfHeaders, ...flattenData]
         const workbook = XLSX.utils.book_new()
@@ -348,4 +388,206 @@ export class ReportService {
         return buffer
     }
 
+    private async getChains(filters: Partial<ReportFilters>) {
+        const files = await this.filesRepo.find()
+        const rels = await this.relationRepo.find()
+        const fileMap = new Map<number, MonitoredFile>();
+        const childrenMap = new Map<number, number[]>()
+        const chains: TChains[] = []
+        const visitedGlobal = new Set<number>();
+
+        files.map((file) => { fileMap.set(file.id, file) })
+
+        rels.forEach(rel => {
+            const parent = rel.parentFileId
+            const child = rel.childFileId
+            if (!childrenMap.has(parent)) {
+                childrenMap.set(parent, []);
+            }
+            childrenMap.get(parent)?.push(child)
+        });
+
+        const originalFiles = await this.filesRepo.find({
+            where: { isOriginalMarked: true }
+        })
+
+        for (const origin of originalFiles) {
+            const originalId = origin.id
+
+            const dfs = (currentId: number, path: number[], depth: number) => {
+                if (visitedGlobal.has(currentId)) {
+                    return
+                }
+                visitedGlobal.add(currentId)
+
+                const currentFile = fileMap.get(currentId)
+
+                if (!currentFile) {
+                    return
+                }
+
+                const chainPath = path.map(id => fileMap.get(id)?.filePath || `unknown`);
+
+                chains.push({
+                    ancestorId: origin.id,
+                    ancestorPath: origin.filePath,
+                    pathChain: [...chainPath],
+                    chainDepth: depth,
+                    createdAt: currentFile.createdAt.toISOString().replace('.000Z', '').replace(`T`, ' '),
+                });
+
+                const children = childrenMap.get(currentId) || [];
+
+                for (const childId of children) {
+                    dfs(childId, [...path, childId], depth + 1);
+                }
+            };
+
+            dfs(originalId, [originalId], 0);
+        }
+
+        return chains
+    }
+
+    private toArray(chainsArray: TChains[]) {
+        return chainsArray.map((chain) => [
+            String(chain.chainDepth),
+            chain.pathChain.join(' -> '),
+            chain.createdAt,
+        ])
+    }
+
+    private genearteChainsPdf(body: TChains[]) {
+        const fonts: TFontDictionary = {
+            Roboto: {
+                normal: this.robotoFontPath,
+                bold: this.robotoFontPath,
+                italics: this.robotoFontPath,
+                bolditalics: this.robotoFontPath
+            }
+        };
+
+        const printer = new PdfPrinter(fonts);
+        const fieldNames = [`Глубина`, `Цепочка`, `Дата создания`]
+        const data = this.toArray(body)
+        const betterData = [...data]
+
+        const tableBody = [
+            fieldNames,
+            ...betterData,
+        ];
+
+        const docDefinition: TDocumentDefinitions = {
+            content: [
+                { text: 'Отчёт по событиям системы', style: 'header' },
+                { text: `Сгенерировано: ${new Date().toLocaleString()}`, style: 'subheader' },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: [`auto`, `auto`, `auto`],
+                        dontBreakRows: true,
+                        body: tableBody
+                    },
+                    layout: {
+                        fillColor: (rowIndex) => {
+                            return rowIndex === 0 ? '#CCCCCC' : (rowIndex % 2 === 0 ? '#F5F5F5' : null);
+                        }
+                    }
+                }
+            ],
+        }
+
+        return printer.createPdfKitDocument(docDefinition);
+    }
+
+    private async genearteChainsDocx(body: TChains[]) {
+        const doc = new Document()
+        const flattenData = this.toArray(body)
+
+        const header = new Paragraph({
+            children: [
+                new TextRun({
+                    bold: true,
+                    size: 48,
+                    text: ``,
+                })
+            ],
+            alignment: AlignmentType.CENTER
+        })
+
+        const subHeader = new Paragraph({
+            children: [
+                new TextRun({
+                    size: 28,
+                    text: `Сгенерировано: ${new Date().toLocaleString()}`,
+                })
+            ],
+            alignment: AlignmentType.CENTER
+        })
+
+        const fieldNames: string[] = [`Глубина`, `Цепочка`, `Дата создания`]
+
+        const tableHeaders = fieldNames.map((field) => {
+            return new TableCell({
+                width: {
+                    size: 5000,
+                    type: WidthType.DXA
+                },
+                children: [
+                    new Paragraph(field)
+                ]
+            })
+        })
+
+        const headerRow = new TableRow({
+            children: tableHeaders
+        })
+
+        const tableBody = flattenData.map((row) => {
+            const cells = row.map(cell => {
+                return new TableCell({
+                    width: {
+                        size: 5000,
+                        type: WidthType.DXA
+                    },
+                    children: [
+                        new Paragraph(String(cell))
+                    ]
+                })
+            })
+
+            return new TableRow({ children: cells })
+        })
+        const table = new Table({
+            rows: [headerRow, ...tableBody]
+        })
+        doc.addSection({
+            children: [header, subHeader, table]
+        })
+
+        try {
+            const buffer = await Packer.toBuffer(doc);
+            return Buffer.from(buffer);
+        } catch (error) {
+            console.error('DOCX generation error:', error);
+            throw new Error('Failed to generate DOCX file');
+        }
+    }
+
+    private genearteChainsXlsx(body: TChains[]) {
+        const arrayOfHeaders: string[] = [`Глубина`, `Цепочка`, `Дата создания`]
+        const flattenData = this.toArray(body)
+        const data: string[][] = [arrayOfHeaders, ...flattenData]
+        const workbook = XLSX.utils.book_new()
+        const worksheet = XLSX.utils.aoa_to_sheet(data)
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, `Sheet1`)
+
+        const buffer = XLSX.write(workbook, {
+            type: 'buffer',
+            bookType: 'xlsx',
+        }) as Buffer;
+
+        return buffer
+    }
 }
