@@ -8,6 +8,9 @@ export class ReportDto {
     timestamp: boolean;
     relatedFileId: MonitoredFile;
     relatedProcessId: Process;
+    startDate: string
+    endDate: string
+    exceptions: string
 }
 
 class Process {
@@ -37,7 +40,6 @@ class MonitoredFile {
 }
 
 
-export class ReportFilters {
-    startDate: string
-    endDate: string
+export class ExceptionsDto {
+
 }

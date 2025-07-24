@@ -1,7 +1,7 @@
 import { Request, Response, Router } from "express";
 import { ReportService } from "./reports.service";
 import { log } from "console";
-import { ReportDto, ReportFilters } from "./report.dto";
+import { ExceptionsDto, ReportDto } from "./report.dto";
 const express = require('express');
 
 export class ReportController {
@@ -23,7 +23,7 @@ export class ReportController {
 
     async exportPdf(req: Request, res: Response) {
         const filters: Partial<ReportDto> = { ...req.query }
-
+        log(filters.exceptions)
         const pdfDoc = await this.reportService.getPdfReport(filters)
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
@@ -67,7 +67,7 @@ export class ReportController {
 
     async distributionChainsExportPdf(req: Request, res: Response) {
         try {
-            const filters: Partial<ReportFilters> = { ...req.query }
+            const filters: Partial<ExceptionsDto> = { ...req.query }
             const pdfDoc = await this.reportService.getChainsPdf(filters)
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
@@ -81,7 +81,7 @@ export class ReportController {
     }
 
     async distributionChainsExportDocx(req: Request, res: Response) {
-        const filters: Partial<ReportFilters> = { ...req.query }
+        const filters: Partial<ExceptionsDto> = { ...req.query }
         try {
             const buffer = await this.reportService.getChainsDocx(filters);
             if (!Buffer.isBuffer(buffer)) {
@@ -100,7 +100,7 @@ export class ReportController {
     }
     async distributionChainsExportXlsx(req: Request, res: Response) {
         try {
-            const filters: Partial<ReportFilters> = { ...req.query }
+            const filters: Partial<ExceptionsDto> = { ...req.query }
             const buffer = await this.reportService.getChainsXlsx(filters)
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.setHeader('Content-Disposition', `attachment; filename=report.xlsx`);

@@ -5,7 +5,7 @@ import * as path from 'path';
 import PdfPrinter from "pdfmake";
 import { AlignmentType, Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import XLSX from 'xlsx'
-import { ReportDto, ReportFilters } from "./report.dto";
+import { ReportDto, ExceptionsDto } from "./report.dto";
 import { log } from "console";
 import { MonitoredFile } from "../entities/monitored_file.entity";
 import { FileRelationship } from "../entities/file_relationships.entity";
@@ -40,69 +40,100 @@ export class ReportService {
 
     async getPdfReport(filters: Partial<ReportDto>) {
         const { selectFields, fieldNames } = this.buildEventSelect(filters);
-        const events = await this.getEvents(selectFields)
+        const dateRange =
+        {
+            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
+            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
+        }
+        filters.endDate
+        const excludePaths = this.exceptionsToArray(filters.exceptions)
+        const events = await this.getEvents(selectFields, excludePaths, dateRange.startDate, dateRange.endDate)
         const flattenedData = this.preparePdfData(events, fieldNames);
+        this.exceptionsToArray(filters.exceptions)
         return this.generatePdf(flattenedData, fieldNames);
     }
 
     async getDocxReport(filters: Partial<ReportDto>) {
         const { selectFields, fieldNames } = this.buildEventSelect(filters);
-        const events = await this.getEvents(selectFields)
-        log(events)
+        const excludePaths = this.exceptionsToArray(filters.exceptions)
+        const events = await this.getEvents(selectFields, excludePaths)
         const flattenedData = this.preparePdfData(events, fieldNames);
         return this.generateDocx(flattenedData, fieldNames)
     }
 
     async getXlsxReport(filters: Partial<ReportDto>) {
         const { selectFields, fieldNames } = this.buildEventSelect(filters);
-        const events = await this.getEvents(selectFields)
+        const excludePaths = this.exceptionsToArray(filters.exceptions)
+        const events = await this.getEvents(selectFields, excludePaths)
         const flattenedData = this.preparePdfData(events, fieldNames);
         return this.generateXlsx(flattenedData, fieldNames)
     }
 
-    async getChainsPdf(filters: Partial<ReportFilters>) {
-        const formatedDates = {
-            startDate: filters.startDate.replace("T", '').replace('.000Z', ''),
-            endDate: filters.endDate.replace("T", '').replace('.000Z', '')
-        }
+    async getChainsPdf(filters: Partial<ExceptionsDto>) {
+
         const chains = await this.getChains()
         return this.genearteChainsPdf(chains)
 
     };
 
-    async getChainsDocx(filters: Partial<ReportFilters>) {
-        const formatedDates = {
-            startDate: filters.startDate.replace("T", '').replace('.000Z', ''),
-            endDate: filters.endDate.replace("T", '').replace('.000Z', '')
-        }
+    async getChainsDocx(filters: Partial<ExceptionsDto>) {
+
         const chains = await this.getChains()
         return await this.genearteChainsDocx(chains)
     };
 
-    async getChainsXlsx(filters: Partial<ReportFilters>) {
-        const formatedDates = {
-            startDate: filters.startDate.replace("T", '').replace('.000Z', ''),
-            endDate: filters.endDate.replace("T", '').replace('.000Z', '')
-        }
+    async getChainsXlsx(filters: Partial<ExceptionsDto>) {
+
         const chains = await this.getChains()
         return this.genearteChainsXlsx(chains)
     };
 
-    private async getEvents(selectFields: string[]) {
+    private exceptionsToArray(exceptions: string): string[] {
+        if (!exceptions) {
+            return [];
+        }
+        const rawString = exceptions.split('\n')
+        const cleaned = rawString
+            .map(part => part.trim())
+        return cleaned
+    }
+
+    private async getEvents(selectFields: string[], excludePaths: string[], startDate?: string, endDate?: string) {
         try {
-            const events = await this.reportRepo
+            log(excludePaths);
+            const excludePaths1 = ['/data/', '/tmp/', '/backups/config.json.bak']
+            let query = this.reportRepo
                 .createQueryBuilder('event')
                 .leftJoinAndSelect('event.relatedFileId', 'file')
                 .leftJoinAndSelect('event.relatedProcessId', 'process')
-                .select(selectFields)
-                .andWhere('event.timestamp BETWEEN :from AND :to', {})
-                .getMany();
-            return events
+
+            excludePaths.forEach((path, idx) => {
+                const paramName = `filePathExclude${idx}`;
+                const paramValue = path.endsWith('%') ? path : `${path}%`;
+                if (idx === 0) {
+                    query = query.where(`file.filePath NOT LIKE :${paramName}`, { [paramName]: paramValue });
+                } else {
+                    query = query.andWhere(`file.filePath NOT LIKE :${paramName}`, { [paramName]: paramValue });
+                }
+            })
+            excludePaths.forEach((path, idx) => {
+                const paramName = `processPathExclude${idx}`;
+                const paramValue = path.endsWith('%') ? path : `${path}%`;
+                query = query.andWhere(`process.executablePath NOT LIKE :${paramName}`, { [paramName]: paramValue });
+            });
+
+
+            if (startDate && endDate) {
+                query = query.andWhere('event.timestamp BETWEEN :startDate AND :endDate', { startDate, endDate });
+            }
+            const events = await query.select(selectFields).getMany();
+            return events;
         } catch (error) {
             console.error('Error in getEvents:', error);
             throw error;
         }
     }
+
 
     private preparePdfData(events: SystemEvent[], fieldNames: { text: string, style: string }[]): string[][] {
         return events.map(event => {
@@ -252,7 +283,7 @@ export class ReportService {
 
         const columnCount = fieldNames.length;
 
-        const widths = new Array(columnCount).fill('*');
+        const widths = new Array(columnCount).fill('auto');
 
         const docDefinition: TDocumentDefinitions = {
             content: [
@@ -388,7 +419,7 @@ export class ReportService {
         return buffer
     }
 
-    private async getChains(filters: Partial<ReportFilters>) {
+    private async getChains() {
         const files = await this.filesRepo.find()
         const rels = await this.relationRepo.find()
         const fileMap = new Map<number, MonitoredFile>();
