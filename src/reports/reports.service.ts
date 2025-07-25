@@ -6,10 +6,12 @@ import PdfPrinter from "pdfmake";
 import { AlignmentType, Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import XLSX from 'xlsx'
 import { ReportDto, ExceptionsDto } from "./report.dto";
-import { log } from "console";
 import { MonitoredFile } from "../entities/monitored_file.entity";
 import { FileRelationship } from "../entities/file_relationships.entity";
-import { endianness } from "os";
+import { Between } from "typeorm";
+import { log } from "console";
+import { start } from "repl";
+
 
 type TableHeader = {
     text: string
@@ -45,50 +47,71 @@ export class ReportService {
             startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
             endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
         }
-        filters.endDate
-        const excludePaths = this.exceptionsToArray(filters.exceptions)
-        const events = await this.getEvents(selectFields, excludePaths, dateRange.startDate, dateRange.endDate)
+        const excludeFilePaths = this.exceptionsToArray(filters.fileExceptions)
+        const excludeProcessPaths = this.exceptionsToArray(filters.processExceptions)
+        const events = await this.getEvents(selectFields, excludeFilePaths, excludeProcessPaths, dateRange.startDate, dateRange.endDate)
         const flattenedData = this.preparePdfData(events, fieldNames);
-        this.exceptionsToArray(filters.exceptions)
         return this.generatePdf(flattenedData, fieldNames);
     }
 
     async getDocxReport(filters: Partial<ReportDto>) {
         const { selectFields, fieldNames } = this.buildEventSelect(filters);
-        const excludePaths = this.exceptionsToArray(filters.exceptions)
-        const events = await this.getEvents(selectFields, excludePaths)
+        const dateRange =
+        {
+            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
+            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
+        }
+        const excludeFilePaths = this.exceptionsToArray(filters.fileExceptions)
+        const excludeProcessPaths = this.exceptionsToArray(filters.processExceptions)
+        const events = await this.getEvents(selectFields, excludeFilePaths, excludeProcessPaths, dateRange.startDate, dateRange.endDate)
         const flattenedData = this.preparePdfData(events, fieldNames);
         return this.generateDocx(flattenedData, fieldNames)
     }
 
     async getXlsxReport(filters: Partial<ReportDto>) {
         const { selectFields, fieldNames } = this.buildEventSelect(filters);
-        const excludePaths = this.exceptionsToArray(filters.exceptions)
-        const events = await this.getEvents(selectFields, excludePaths)
+        const dateRange =
+        {
+            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
+            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
+        }
+        const excludeFilePaths = this.exceptionsToArray(filters.fileExceptions)
+        const excludeProcessPaths = this.exceptionsToArray(filters.processExceptions)
+        const events = await this.getEvents(selectFields, excludeFilePaths, excludeProcessPaths, dateRange.startDate, dateRange.endDate)
         const flattenedData = this.preparePdfData(events, fieldNames);
         return this.generateXlsx(flattenedData, fieldNames)
     }
 
     async getChainsPdf(filters: Partial<ExceptionsDto>) {
-
-        const chains = await this.getChains()
+        const dateParams = {
+            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
+            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
+        }
+        const chains = await this.getChains(dateParams.startDate, dateParams.endDate, filters.minDepth, filters.maxDepth)
+        log(chains)
         return this.genearteChainsPdf(chains)
 
     };
 
     async getChainsDocx(filters: Partial<ExceptionsDto>) {
-
-        const chains = await this.getChains()
+        const dateParams = {
+            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
+            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
+        }
+        const chains = await this.getChains(dateParams.startDate, dateParams.endDate, filters.minDepth, filters.maxDepth)
         return await this.genearteChainsDocx(chains)
     };
 
     async getChainsXlsx(filters: Partial<ExceptionsDto>) {
-
-        const chains = await this.getChains()
+        const dateParams = {
+            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
+            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
+        }
+        const chains = await this.getChains(dateParams.startDate, dateParams.endDate, filters.minDepth, filters.maxDepth)
         return this.genearteChainsXlsx(chains)
     };
 
-    private exceptionsToArray(exceptions: string): string[] {
+    private exceptionsToArray(exceptions?: string): string[] {
         if (!exceptions) {
             return [];
         }
@@ -98,34 +121,53 @@ export class ReportService {
         return cleaned
     }
 
-    private async getEvents(selectFields: string[], excludePaths: string[], startDate?: string, endDate?: string) {
+    private async getEvents(
+        selectFields: string[],
+        excludeFilePaths: string[] = [],
+        excludeProcessPaths: string[] = [],
+        startDate?: string,
+        endDate?: string
+    ) {
         try {
-            log(excludePaths);
-            const excludePaths1 = ['/data/', '/tmp/', '/backups/config.json.bak']
             let query = this.reportRepo
                 .createQueryBuilder('event')
                 .leftJoinAndSelect('event.relatedFileId', 'file')
-                .leftJoinAndSelect('event.relatedProcessId', 'process')
+                .leftJoinAndSelect('event.relatedProcessId', 'process');
 
-            excludePaths.forEach((path, idx) => {
-                const paramName = `filePathExclude${idx}`;
-                const paramValue = path.endsWith('%') ? path : `${path}%`;
-                if (idx === 0) {
-                    query = query.where(`file.filePath NOT LIKE :${paramName}`, { [paramName]: paramValue });
-                } else {
-                    query = query.andWhere(`file.filePath NOT LIKE :${paramName}`, { [paramName]: paramValue });
-                }
-            })
-            excludePaths.forEach((path, idx) => {
-                const paramName = `processPathExclude${idx}`;
-                const paramValue = path.endsWith('%') ? path : `${path}%`;
-                query = query.andWhere(`process.executablePath NOT LIKE :${paramName}`, { [paramName]: paramValue });
-            });
+            if (excludeFilePaths && excludeFilePaths.length > 0) {
+                const fileConds: string[] = [];
+                const params: Record<string, any> = {};
+                excludeFilePaths.forEach((path, idx) => {
+                    const param = `filePathExclude${idx}`;
+                    params[param] = path.endsWith('%') ? path : `${path}%`;
+                    fileConds.push(`file.filePath NOT LIKE :${param}`);
+                });
 
+                query = query.andWhere(
+                    `(file.filePath IS NULL OR (${fileConds.join(' AND ')}))`,
+                    params
+                );
+            }
+
+            if (excludeProcessPaths && excludeProcessPaths.length > 0) {
+                const procConds: string[] = [];
+                const params: Record<string, any> = {};
+                excludeProcessPaths.forEach((path, idx) => {
+                    const param = `processPathExclude${idx}`;
+                    params[param] = path.endsWith('%') ? path : `${path}%`;
+                    procConds.push(`process.executablePath NOT LIKE :${param}`);
+                });
+
+                query = query.andWhere(
+                    `(process.executablePath IS NULL OR (${procConds.join(' AND ')}))`,
+                    params
+                );
+            }
 
             if (startDate && endDate) {
                 query = query.andWhere('event.timestamp BETWEEN :startDate AND :endDate', { startDate, endDate });
             }
+
             const events = await query.select(selectFields).getMany();
             return events;
         } catch (error) {
@@ -133,7 +175,6 @@ export class ReportService {
             throw error;
         }
     }
-
 
     private preparePdfData(events: SystemEvent[], fieldNames: { text: string, style: string }[]): string[][] {
         return events.map(event => {
@@ -419,8 +460,13 @@ export class ReportService {
         return buffer
     }
 
-    private async getChains() {
-        const files = await this.filesRepo.find()
+    private async getChains(startDate: string, endDate: string, minDepth: number, maxDepth: number) {
+        const files = await this.filesRepo.find({
+            where: {
+                createdAt: Between(startDate, endDate)
+            }
+        })
+        log(files)
         const rels = await this.relationRepo.find()
         const fileMap = new Map<number, MonitoredFile>();
         const childrenMap = new Map<number, number[]>()
@@ -456,19 +502,17 @@ export class ReportService {
                 if (!currentFile) {
                     return
                 }
-
                 const chainPath = path.map(id => fileMap.get(id)?.filePath || `unknown`);
-
-                chains.push({
-                    ancestorId: origin.id,
-                    ancestorPath: origin.filePath,
-                    pathChain: [...chainPath],
-                    chainDepth: depth,
-                    createdAt: currentFile.createdAt.toISOString().replace('.000Z', '').replace(`T`, ' '),
-                });
-
+                if (depth >= minDepth && depth <= maxDepth) {
+                    chains.push({
+                        ancestorId: origin.id,
+                        ancestorPath: origin.filePath,
+                        pathChain: [...chainPath],
+                        chainDepth: depth,
+                        createdAt: currentFile.createdAt.toISOString().replace('.000Z', '').replace(`T`, ' '),
+                    });
+                }
                 const children = childrenMap.get(currentId) || [];
-
                 for (const childId of children) {
                     dfs(childId, [...path, childId], depth + 1);
                 }
@@ -476,7 +520,6 @@ export class ReportService {
 
             dfs(originalId, [originalId], 0);
         }
-
         return chains
     }
 

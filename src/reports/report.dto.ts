@@ -10,7 +10,8 @@ export class ReportDto {
     relatedProcessId: Process;
     startDate: string
     endDate: string
-    exceptions: string
+    fileExceptions: string
+    processExceptions: string
 }
 
 class Process {
@@ -41,5 +42,9 @@ class MonitoredFile {
 
 
 export class ExceptionsDto {
-
+    startDate: string
+    endDate: string
+    depth: number
+    minDepth: number
+    maxDepth: number
 }

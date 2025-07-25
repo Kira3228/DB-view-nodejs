@@ -23,7 +23,7 @@ export class ReportController {
 
     async exportPdf(req: Request, res: Response) {
         const filters: Partial<ReportDto> = { ...req.query }
-        log(filters.exceptions)
+        log(filters)
         const pdfDoc = await this.reportService.getPdfReport(filters)
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
@@ -53,7 +53,6 @@ export class ReportController {
     async exportXlsx(req: Request, res: Response) {
         try {
             const filters: Partial<ReportDto> = { ...req.query }
-
             const buffer = await this.reportService.getXlsxReport(filters)
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.setHeader('Content-Disposition', `attachment; filename=report.xlsx`);
@@ -68,6 +67,7 @@ export class ReportController {
     async distributionChainsExportPdf(req: Request, res: Response) {
         try {
             const filters: Partial<ExceptionsDto> = { ...req.query }
+            log(filters)
             const pdfDoc = await this.reportService.getChainsPdf(filters)
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
