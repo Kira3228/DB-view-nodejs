@@ -14,4 +14,7 @@ export class FiltersDto {
     limit?: number = 30;
     startDate?: string;
     endDate?: string;
+
+    filePathException: string
+    processPathException: string
 }

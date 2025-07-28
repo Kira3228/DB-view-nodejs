@@ -3,4 +3,6 @@ export class ActiveFileFilters {
     filePath?: string;
     page?: number;
     limit?: number;
+    filePathException: string
+    processPathException: string
 }

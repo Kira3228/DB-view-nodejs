@@ -11,100 +11,141 @@ export class ActiveFilesService {
     private relationRepo = getRepository(FileRelationship)
 
     async getActiveFiles(
-        filters: ActiveFileFilters,
+        filters: Partial<ActiveFileFilters>,
         page: number = 1,
         limit: number = 30
     ) {
-        const where: any = {}
+        let queryBuilder = this.activeFileRepo
+            .createQueryBuilder('file')
+            .select([
+                "file.id",
+                "file.inode",
+                "file.fileSize",
+                "file.filePath",
+                "file.minChainDepth",
+                "file.maxChainDepth",
+                "file.status"
+            ]);
+
         if (filters.filePath) {
-            where.filePath = Like(`%${filters.filePath}%`)
-        }
-        if (filters.inode) {
-            where.inode = filters.inode
+            queryBuilder.andWhere('file.filePath LIKE :filePath', {
+                filePath: `%${filters.filePath}%`
+            });
         }
 
-        const [files, totalCount] = await this.activeFileRepo.findAndCount({
-            where,
-            select: [
-                "id",
-                "inode",
-                "fileSize",
-                "filePath",
-                "minChainDepth",
-                "maxChainDepth",
-                "status"
-            ],
-            skip: (page - 1) * limit,
-            take: limit
-        })
+        if (filters.inode) {
+            queryBuilder.andWhere('file.inode = :inode', {
+                inode: filters.inode
+            });
+        }
+
+        const excludeFilePaths = this.toArray(filters.filePathException);
+        const allParams: Record<string, any> = {};
+
+        if (excludeFilePaths && excludeFilePaths.length > 0) {
+            const fileConds: string[] = [];
+
+            excludeFilePaths.forEach((path, idx) => {
+                const param = `filePathExclude${idx}`;
+                allParams[param] = `%${path.trim()}%`;
+                fileConds.push(`file.filePath NOT LIKE :${param}`);
+            });
+
+            queryBuilder.andWhere(
+                `(${fileConds.join(' AND ')})`,
+                allParams
+            );
+        }
+
+        const skipAmount = (page - 1) * limit;
+        queryBuilder.skip(skipAmount).take(limit);
+
+        const [files, totalCount] = await queryBuilder.getManyAndCount();
+
         return {
             files,
             totalCount,
             page,
             totalPage: Math.ceil(totalCount / limit),
             limit
-        }
+        };
     }
 
-    async getArchive(filters: ActiveFileFilters,
+    async getArchive(
+        filters: Partial<ActiveFileFilters>,
         page: number = 1,
-        limit: number = 30) {
-        const statusConditions = ['archived', 'deleted'].map((status) => ({
-            status,
-            ...this.buildWhereConditions(filters)
-        }))
+        limit: number = 30
+    ) {
+        let queryBuilder = this.activeFileRepo
+            .createQueryBuilder('file')
+            .where('file.status IN (:...statuses)', {
+                statuses: ['archived', 'deleted']
+            });
 
-        const where = [...statusConditions];
+        if (filters.filePath) {
+            queryBuilder.andWhere('file.filePath LIKE :filePath', {
+                filePath: `%${filters.filePath}%`
+            });
+        }
 
-        const [files, totalCount] = await this.activeFileRepo.findAndCount({
-            where,
-            skip: (filters.page - 1) * filters.limit,
-            take: filters.limit
-        })
-        log(files, totalCount, { totalPages: Math.ceil(totalCount / limit), }, page, limit)
+        if (filters.inode) {
+            queryBuilder.andWhere('file.inode = :inode', {
+                inode: filters.inode
+            });
+        }
+
+        const excludeFilePaths = this.toArray(filters.filePathException);
+        const allParams: Record<string, any> = {};
+
+        if (excludeFilePaths && excludeFilePaths.length > 0) {
+            const fileConds: string[] = [];
+
+            excludeFilePaths.forEach((path, idx) => {
+                const param = `filePathExclude${idx}`;
+                allParams[param] = `%${path.trim()}%`;
+                fileConds.push(`file.filePath NOT LIKE :${param}`);
+            });
+
+            queryBuilder.andWhere(
+                `(${fileConds.join(' AND ')})`,
+                allParams
+            );
+        }
+
+        const skipAmount = (page - 1) * limit;
+        queryBuilder.skip(skipAmount).take(limit);
+
+        const [files, totalCount] = await queryBuilder.getManyAndCount();
+
         return {
             files,
             totalCount,
             page,
             totalPages: Math.ceil(totalCount / limit),
             limit
-        }
-    }
-
-    private buildWhereConditions(filters: ActiveFileFilters) {
-        const where: any = {}
-
-        if (filters.filePath) {
-            where.filePath = Like(`%${filters.filePath}%`)
-        }
-        log(filters.filePath)
-        if (filters.inode) {
-            where.inode = Like(`%${filters.inode}%`)
-        }
-        log(where)
-        return where
+        };
     }
 
     async updateStatus(dto: UpdateStatusDto, id: number) {
         const { status } = dto
-        log(status, id)
+
         const file = await this.activeFileRepo.update({ id }, { status })
 
         if (file.affected === 0) {
             throw new Error(`Файл с ID ${id} не найден`);
         }
+
         return this.activeFileRepo.findOne({
             where: { id: id }
         })
     }
 
-    async graph(filePath?: string, inode?: number) {
+    async graph(filePath?: string, inode?: number, filePathException?: string) {
         const query = this.relationRepo
             .createQueryBuilder('relation')
             .leftJoinAndSelect('relation.parentFile', 'parentFile')
             .leftJoinAndSelect('relation.childFile', 'childFile');
 
-        // Добавляем условия фильтрации
         if (filePath) {
             query.andWhere('parentFile.filePath LIKE :filePath', {
                 filePath: `%${filePath}%`
@@ -115,14 +156,37 @@ export class ActiveFilesService {
             query.andWhere('parentFile.inode = :inode', { inode });
         }
 
+        const excludeFilePaths = this.toArray(filePathException);
+        const allParams: Record<string, any> = {};
 
-        log(query)
-        // const rels = await this.relationRepo.find({
-        //     relations: ['parentFile', 'childFile'],
-        //     where
-        // });
+        if (excludeFilePaths && excludeFilePaths.length > 0) {
+
+            const parentFileConds: string[] = [];
+            const childFileConds: string[] = [];
+
+            excludeFilePaths.forEach((path, idx) => {
+                const parentParam = `parentFileExclude${idx}`;
+                const childParam = `childFileExclude${idx}`;
+
+                allParams[parentParam] = `%${path.trim()}%`;
+                allParams[childParam] = `%${path.trim()}%`;
+
+                parentFileConds.push(`parentFile.filePath NOT LIKE :${parentParam}`);
+                childFileConds.push(`childFile.filePath NOT LIKE :${childParam}`);
+            });
+
+            query.andWhere(
+                `(${parentFileConds.join(' AND ')})`,
+                allParams
+            );
+
+            query.andWhere(
+                `(${childFileConds.join(' AND ')})`,
+                allParams
+            );
+        }
+
         const rels = await query.getMany();
-
 
         const groupedRelations = rels.reduce((acc, rel) => {
             const parentId = rel.parentFileId.toString();
@@ -142,13 +206,29 @@ export class ActiveFilesService {
 
             return acc;
         }, {});
+
         return groupedRelations;
     }
 
-    async generatePDFreport() {
-        
-    }
+    private toArray(exception: string): string[] {
+        if (!exception || exception.trim() === '') {
+            return [];
+        }
 
+        const normalizedPath = exception
+            .split('/')
+            .map(part => part.trim())
+            .filter(part => part.length > 0)
+            .join('/')
+
+        const result = normalizedPath
+            .trimEnd()
+            .split(";")
+            .map(path => path.trim())
+            .filter(path => path !== '');
+
+        return result
+    }
 }
 
 

@@ -1,18 +1,9 @@
 import { getRepository, In, SelectQueryBuilder } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { FiltersDto } from "./dto/filters.dto";
-import { log } from "console";
-import PdfPrinter from 'pdfmake';
-import * as path from 'path';
-import * as fs from 'fs';
-import { TDocumentDefinitions } from "pdfmake/interfaces";
-
-
 
 export class SystemLogService {
     private systemLogRepo = getRepository(SystemEvent);
-    private readonly russianFontPath = path.resolve(__dirname, '../../assets/timesnewromanpsmt.ttf');
-    private readonly robotoFontPath = path.resolve(__dirname, '../../assets/Roboto.ttf')
     async getSystemEvents() {
         try {
             return await this.systemLogRepo
@@ -42,24 +33,45 @@ export class SystemLogService {
         page: number = 1,
         limit: number = 30
     ) {
-        const queryBuilder = this.systemLogRepo
+        let queryBuilder = this.systemLogRepo
             .createQueryBuilder('event')
             .leftJoinAndSelect('event.relatedFileId', 'file')
             .leftJoinAndSelect('event.relatedProcessId', 'process')
-            .select([
-                'event.id',
-                'event.eventData',
-                'event.timestamp',
-                'event.eventType',
-                'event.source',
-                'file.id',
-                'file.filePath',
-                'file.fileName',
-                'file.status',
-                'file.fileSystemId',
-                'process.id',
-                'process.pid',
-            ]);
+
+        const excludeFilePaths = this.toArray(filters.filePathException)
+        const excludeProcessPaths = this.toArray(filters.processPathException)
+
+        if (excludeFilePaths && excludeFilePaths.length > 0) {
+            const fileConds: string[] = []
+            const params: Record<string, any> = {};
+
+            excludeFilePaths.forEach((path, idx) => {
+                const param = `filePathExclude${idx}`;
+                params[param] = path.endsWith(`%`) ? path : `%${path}%`;
+                fileConds.push(`file.filePath NOT LIKE :${param}`)
+
+            })
+
+            queryBuilder = queryBuilder.andWhere(
+                `(file.filePath IS NULL OR (${fileConds.join(' AND ')}))`,
+                params
+            );
+        }
+        if (excludeProcessPaths && excludeProcessPaths.length > 0) {
+            const procConds: string[] = [];
+            const params: Record<string, any> = {};
+
+            excludeProcessPaths.forEach((path, idx) => {
+                const param = `processPathExclude${idx}`;
+                params[param] = path.endsWith('%') ? path : `${path}%`;
+                procConds.push(`process.executablePath NOT LIKE :${param}`);
+            });
+
+            queryBuilder = queryBuilder.andWhere(
+                `(process.executablePath IS NULL OR (${procConds.join(' AND ')}))`,
+                params
+            );
+        }
 
         if (filters.eventType) {
             queryBuilder.andWhere('event.eventType = :eventType', {
@@ -68,7 +80,6 @@ export class SystemLogService {
         }
 
         this.applyDateFilters(queryBuilder, filters);
-
         this.applyFileFilters(queryBuilder, filters);
 
         if (filters.relatedFileId) {
@@ -77,7 +88,24 @@ export class SystemLogService {
 
         const skipAmount = (page - 1) * limit;
         queryBuilder.skip(skipAmount).take(limit);
-        const [events, totalCount] = await queryBuilder.getManyAndCount();
+
+        const [events, totalCount] = await queryBuilder.select([
+            'event.id',
+            'event.eventData',
+            'event.timestamp',
+            'event.eventType',
+            'event.source',
+            'file.id',
+            'file.filePath',
+            'file.fileName',
+            'file.status',
+            'file.fileSystemId',
+            'process.id',
+            'process.pid',
+            'process.executablePath'
+        ]).getManyAndCount();
+
+        this.toArray(filters.filePathException)
 
         return {
             events,
@@ -96,16 +124,15 @@ export class SystemLogService {
             const startDate = new Date(filters.startDate).toISOString().replace('T', ' ').slice(0, 19);
             const endDate = new Date(filters.endDate).toISOString().replace('T', ' ').slice(0, 19);
 
-            log(startDate.toString(), endDate)
+
             queryBuilder.andWhere(
                 'event.timestamp BETWEEN :startDate AND :endDate',
                 {
                     startDate: `${startDate}`,
                     endDate: `${endDate}`
-
                 }
             );
-            log(queryBuilder.getSql())
+
         } else {
             if (filters.startDate) {
                 const startDate = new Date(filters.startDate).toISOString().replace('T', ' ').slice(0, 19);
@@ -122,7 +149,6 @@ export class SystemLogService {
         }
     }
 
-
     private applyFileFilters(
         queryBuilder: SelectQueryBuilder<SystemEvent>,
         filters: FiltersDto
@@ -132,13 +158,14 @@ export class SystemLogService {
                 queryBuilder.andWhere('file.status = :status', {
                     status: filters.status,
                 });
-                log(queryBuilder.getSql())
             }
+
             if (filters.filePath) {
                 queryBuilder.andWhere('file.filePath LIKE :filePath', {
                     filePath: `%${filters.filePath}%`,
                 });
             }
+
             if (filters.fileSystemId) {
                 queryBuilder.andWhere('file.fileSystemId = :fileSystemId', {
                     fileSystemId: filters.fileSystemId,
@@ -155,13 +182,14 @@ export class SystemLogService {
             queryBuilder.andWhere('file.status = :fileStatus', {
                 fileStatus: relatedFile.status,
             });
-            log(queryBuilder.getSql())
         }
+
         if (relatedFile.filePath) {
             queryBuilder.andWhere('file.filePath LIKE :filePath', {
                 filePath: `%${relatedFile.filePath}%`,
             });
         }
+
         if (relatedFile.fileSystemId) {
             queryBuilder.andWhere('file.fileSystemId = :fileSystemId', {
                 fileSystemId: relatedFile.fileSystemId,
@@ -169,15 +197,17 @@ export class SystemLogService {
         }
     }
 
-
     async getSelectedEvents(ids: number[]) {
         const where: any = {}
+
         if (ids && ids.length) {
             where.id = In(ids)
         }
+
         const data = await this.systemLogRepo.find({
             where
         })
+
         return this.exportCSV(data)
     }
 
@@ -185,6 +215,7 @@ export class SystemLogService {
         const options = this.systemLogRepo.find({
             select: ["eventType"]
         })
+
         return options
     }
 
@@ -197,12 +228,9 @@ export class SystemLogService {
         if (!data || data.length === 0) {
             return { data: [], headers: '', rows: '' }
         }
-        console.log(`до хедера`);
-        console.log(`data[0]`, data[0]);
 
         const headers = Object.keys(data[0]).join(',')
 
-        console.log(`ПОСЛЕ  хедера`);
         const rows = data
             .map((row) =>
                 Object.values(row)
@@ -219,48 +247,28 @@ export class SystemLogService {
         }
     }
 
-    async generatePdfReport() {
-        const fonts = {
-            Roboto: {
-                normal: this.robotoFontPath,
+    private toArray(exception: string): string[] {
+        if (!exception || exception.trim() === '') {
+            return [];
+        }
 
-            }
-        };
+        const normalizedPath = exception
+            .split('/')
+            .map(part => part.trim())
+            .filter(part => part.length > 0)
+            .join('/')
 
-        const printer = new PdfPrinter({
-            Roboto: {
-                normal: this.robotoFontPath
-            }
-        });
+        const result = normalizedPath
+            .trimEnd()
+            .split(";")
+            .map(path => path.trim())
+            .filter(path => path !== '');
 
-        const docDefinition: TDocumentDefinitions = {
-            content: [
-                { text: 'Отчёт по событиям', style: 'header' },
-                {
-                    table: {
-                        headerRows: 2,
-                        widths: ['auto', 'auto', `auto`],
-                        body: [
-                            ['Дата', 'Тип', 'Статус'],
-                            ['2023-01-01', 'Ошибка', 'Критично'],
-                            ['2023-01-02', 'Предупреждение', 'Нормально']
-                        ]
-                    }
-                }
-            ],
-            styles: {
-                header: {
-                    fontSize: 18,
-                    margin: [0, 0, 0, 0],
-                }
-            }
-        };
-
-        const pdfDoc = printer.createPdfKitDocument(docDefinition)
-        return pdfDoc
+        return result
     }
 
-    
+
+
 
 
 

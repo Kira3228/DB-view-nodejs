@@ -14,31 +14,28 @@ export class ActiveFileController {
     activeFileService: ActiveFilesService
 
     initializeRoutes() {
-        this.router.get('/get/active', this.get.bind(this));
+        this.router.get('/get/active', this.getActive.bind(this));
         this.router.get('/get/archive', this.getArchive.bind(this));
         this.router.patch('/get/active/update/:id', this.updateStatus.bind(this));
         this.router.get('/get/graph', this.graph.bind(this));
     }
 
-    async get(req: Request, res: Response) {
-        const filters: ActiveFileFilters = { ...req.query }
+    async getActive(req: Request, res: Response) {
+        const filters: Partial<ActiveFileFilters> = { ...req.query }
         log(filters)
         const result = await this.activeFileService.getActiveFiles(filters, filters.page, filters.limit)
         return res.status(200).json(result)
     }
 
     async getArchive(req: Request, res: Response) {
-        const filters: ActiveFileFilters = { ...req.query }
-        log(`фильтры`, filters)
+        const filters: Partial<ActiveFileFilters> = { ...req.query }
         const result = await this.activeFileService.getArchive(filters, filters.page, filters.limit)
-        log(`контроллер`, result)
         return res.status(200).json(result)
     }
+
     async updateStatus(req: Request, res: Response) {
         const body: UpdateStatusDto = req.body
-        log(body)
         const id: number = Number(req.params.id)
-        log(id)
         const result = await this.activeFileService.updateStatus(body, id)
         return res.status(200).json(result)
     }
@@ -48,11 +45,10 @@ export class ActiveFileController {
         log(body)
         const filePath = body.filePath
         const inode = body.inode
-        log(filePath, inode)
-
-        const result = await this.activeFileService.graph(filePath as string, Number(inode));
+        const result = await this.activeFileService.graph(filePath as string, Number(inode), body.filePathExceptions as string);
         return res.status(200).json(result)
     }
+
     getRouter() {
         return this.router;
     }

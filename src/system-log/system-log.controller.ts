@@ -20,7 +20,6 @@ export class SystemLogController {
         this.router.get('/export/selected', this.getSelectedLogs.bind(this));
         this.router.get('/export/all', this.exportCSV.bind(this));
         this.router.get('/get/options', this.getAllOptions.bind(this));
-        this.router.get(`/get/pdf`, this.getPdfReport.bind(this))
     }
 
     async getSystemLog(req: Request, res: Response) {
@@ -96,26 +95,8 @@ export class SystemLogController {
             });
         }
     }
-    async getPdfReport(req: Request, res: Response) {
-        try {
-            // Получаем PDF документ из сервиса
-            const pdfDoc = await this.systemLogService.generatePdfReport();
-
-            // Устанавливаем правильные заголовки для PDF
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
-
-            pdfDoc.pipe(res)
-            pdfDoc.end()
-
-
-        } catch (error) {
-            console.error('Ошибка при генерации PDF:', error);
-            res.status(500).send('Ошибка при генерации отчета');
-        }
-
-
-    }
+    
+ 
     getRouter() {
         return this.router;
     }
