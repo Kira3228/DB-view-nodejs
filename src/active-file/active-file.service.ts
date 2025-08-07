@@ -13,7 +13,7 @@ export class ActiveFilesService {
     async getActiveFiles(
         filters: Partial<ActiveFileFilters>,
         page: number = 1,
-        limit: number = 30
+        limit: number = 6
     ) {
         let queryBuilder = this.activeFileRepo
             .createQueryBuilder('file')
@@ -66,7 +66,7 @@ export class ActiveFilesService {
             files,
             totalCount,
             page,
-            totalPage: Math.ceil(totalCount / limit),
+            totalPages: Math.ceil(totalCount / limit),
             limit
         };
     }

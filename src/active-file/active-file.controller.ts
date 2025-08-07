@@ -36,6 +36,7 @@ export class ActiveFileController {
     async updateStatus(req: Request, res: Response) {
         const body: UpdateStatusDto = req.body
         const id: number = Number(req.params.id)
+        log(id, body)
         const result = await this.activeFileService.updateStatus(body, id)
         return res.status(200).json(result)
     }

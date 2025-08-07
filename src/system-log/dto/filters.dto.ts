@@ -15,6 +15,6 @@ export class FiltersDto {
     startDate?: string;
     endDate?: string;
 
-    filePathException: string
-    processPathException: string
+    filePathException?: string
+    processPathException?: string
 }
