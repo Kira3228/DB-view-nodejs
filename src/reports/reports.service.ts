@@ -10,7 +10,6 @@ import { MonitoredFile } from "../entities/monitored_file.entity";
 import { FileRelationship } from "../entities/file_relationships.entity";
 import { Between } from "typeorm";
 import { log } from "console";
-import { start } from "repl";
 
 
 type TableHeader = {
@@ -88,9 +87,7 @@ export class ReportService {
             endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
         }
         const chains = await this.getChains(dateParams.startDate, dateParams.endDate, filters.minDepth, filters.maxDepth)
-        log(chains)
         return this.genearteChainsPdf(chains)
-
     };
 
     async getChainsDocx(filters: Partial<ExceptionsDto>) {
@@ -461,12 +458,12 @@ export class ReportService {
     }
 
     private async getChains(startDate: string, endDate: string, minDepth: number, maxDepth: number) {
+        log(...arguments)
         const files = await this.filesRepo.find({
             where: {
                 createdAt: Between(startDate, endDate)
             }
         })
-        log(files)
         const rels = await this.relationRepo.find()
         const fileMap = new Map<number, MonitoredFile>();
         const childrenMap = new Map<number, number[]>()

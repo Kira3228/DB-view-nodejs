@@ -37,10 +37,9 @@ export class SystemLogController {
         try {
             const filters: FiltersDto = {
                 ...req.query,
-  
+
             };
-            
-            log(1111111111111, filters)
+            log(filters)
             const result = await this.systemLogService.getFilteredSystemEvents(filters, filters.page, filters.limit);
             return res.status(200).json(result);
         } catch (error) {
@@ -56,7 +55,7 @@ export class SystemLogController {
             const ids = req.query.ids && typeof req.query.ids === 'string' ?
                 req.query.ids.split(',').map(Number) : undefined;
             const result = await this.systemLogService.getSelectedEvents(ids);
-            
+
             const csv = result.headers + '\n' + result.rows;
 
             res.setHeader('Content-Type', 'text/csv');

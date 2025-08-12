@@ -1,6 +1,5 @@
 import { Request, Response, Router } from "express";
 import { ReportService } from "./reports.service";
-import { log } from "console";
 import { ExceptionsDto, ReportDto } from "./report.dto";
 const express = require('express');
 
@@ -13,9 +12,9 @@ export class ReportController {
     router: Router
     reportService: ReportService
     initializeRoutes() {
-        this.router.get(`/pdf`, this.exportPdf.bind(this))
-        this.router.get(`/docx`, this.exportDocx.bind(this))
-        this.router.get(`/xlsx`, this.exportXlsx.bind(this))
+        this.router.get(`/event/pdf`, this.exportPdf.bind(this))
+        this.router.get(`/event/docx`, this.exportDocx.bind(this))
+        this.router.get(`/event/xlsx`, this.exportXlsx.bind(this))
         this.router.get(`/chains/pdf`, this.distributionChainsExportPdf.bind(this))
         this.router.get(`/chains/docx`, this.distributionChainsExportDocx.bind(this))
         this.router.get(`/chains/xlsx`, this.distributionChainsExportXlsx.bind(this))
@@ -23,7 +22,6 @@ export class ReportController {
 
     async exportPdf(req: Request, res: Response) {
         const filters: Partial<ReportDto> = { ...req.query }
-        log(filters)
         const pdfDoc = await this.reportService.getPdfReport(filters)
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
@@ -67,7 +65,6 @@ export class ReportController {
     async distributionChainsExportPdf(req: Request, res: Response) {
         try {
             const filters: Partial<ExceptionsDto> = { ...req.query }
-            log(filters)
             const pdfDoc = await this.reportService.getChainsPdf(filters)
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');

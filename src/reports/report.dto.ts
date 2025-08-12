@@ -42,8 +42,8 @@ class MonitoredFile {
 
 
 export class ExceptionsDto {
-    startDate: string
-    endDate: string
+    startDate?: string
+    endDate?: string
     depth: number
     minDepth: number
     maxDepth: number

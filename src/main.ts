@@ -34,9 +34,7 @@ async function bootstrap() {
             FileOrigin,
             FileAccessEvent
         ],
-        // logging: true
     });
-    console.log("Connected to database");
     const systemLogController = new SystemLogController();
     const activeFileController = new ActiveFileController()
     const reportController = new ReportController();

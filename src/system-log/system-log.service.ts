@@ -33,7 +33,6 @@ export class SystemLogService {
         page: number = 1,
         limit: number = 14
     ) {
-        console.log(filters);
         (filters)
         let queryBuilder = this.systemLogRepo
             .createQueryBuilder('event')
