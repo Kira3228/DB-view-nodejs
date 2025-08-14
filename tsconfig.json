@@ -12,8 +12,8 @@
     "moduleResolution": "node"
   },
   "include": [
-    "src/**/*"
-, "src/User/user.service.ts", "src/User/user.controller.ts", "src/User/user.router.ts"  ],
+    "src/**/*", 
+    "src/User/user.service.ts", "src/User/user.controller.ts", "src/User/user.router.ts"  ],
   "exclude": [
     "node_modules"
   ]

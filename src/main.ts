@@ -14,6 +14,7 @@ import { SystemLogController } from "./system-log/system-log.controller";
 import { ActiveFileController } from "./active-file/active-file.controller";
 import cors from 'cors'
 import { ReportController } from "./reports/reports.controller";
+import { validate } from "./middleware/validate";
 
 // Увеличиваем лимит слушателей событий
 EventEmitter.defaultMaxListeners = 15;
@@ -43,6 +44,7 @@ async function bootstrap() {
 
     app.use(express.json());
     app.use(cors())
+    app.use(validate([]))
     app.use('/api/logs', systemLogController.getRouter());
     app.use('/api/active', activeFileController.getRouter())
     app.use(`/api/reports`, reportController.getRouter())

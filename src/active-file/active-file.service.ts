@@ -1,23 +1,39 @@
-import { getRepository, Like } from "typeorm";
+import { getRepository } from "typeorm";
 import { MonitoredFile } from "../entities/monitored_file.entity";
 import { ActiveFileFilters } from "./dto/acrive-file.dto";
 import { UpdateStatusDto } from "./dto/updateStatus.dto";
-import { log } from "console";
 import { FileRelationship } from "../entities/file_relationships.entity";
-import * as PDFDocument from 'pdfkit';
+import { applyNotLikeList, parsePathException } from "../utils/query-uteils";
 
 export class ActiveFilesService {
     private activeFileRepo = getRepository(MonitoredFile)
     private relationRepo = getRepository(FileRelationship)
 
-    async getActiveFiles(
-        filters: Partial<ActiveFileFilters>,
-        page: number = 1,
-        limit: number = 6
+    private applyCommonFilters(
+        qb: ReturnType<typeof this.activeFileRepo.createQueryBuilder>,
+        filters: Partial<ActiveFileFilters>
     ) {
-        let queryBuilder = this.activeFileRepo
-            .createQueryBuilder('file')
-            .select([
+        if (filters.filePath) {
+            qb.andWhere('file.filePath LIKE :filePath', { filePath: `%${filters.filePath}%` });
+        }
+
+        if (filters.inode) {
+            qb.andWhere('file.inode = :inode', { inode: filters.inode });
+        }
+
+        const excludeFilePaths = parsePathException(filters.filePathException);
+        applyNotLikeList(qb, 'file', `filePath`, excludeFilePaths, `both`)
+    }
+
+    private buildFilesBaseQuery(
+        filters: Partial<ActiveFileFilters>,
+        selectFields = true,
+        statusesOverride?: Array<'active' | 'archived' | 'deleted'>
+    ) {
+        const qb = this.activeFileRepo.createQueryBuilder('file');
+
+        if (selectFields) {
+            qb.select([
                 "file.id",
                 "file.inode",
                 "file.fileSize",
@@ -26,104 +42,46 @@ export class ActiveFilesService {
                 "file.maxChainDepth",
                 "file.status"
             ]);
-
-        if (filters.filePath) {
-            queryBuilder.andWhere('file.filePath LIKE :filePath', {
-                filePath: `%${filters.filePath}%`
-            });
         }
 
-        if (filters.inode) {
-            queryBuilder.andWhere('file.inode = :inode', {
-                inode: filters.inode
-            });
+        if (statusesOverride && statusesOverride.length > 0) {
+            qb.andWhere('file.status IN (:...statuses)', { statuses: statusesOverride });
         }
 
-        const excludeFilePaths = this.toArray(filters.filePathException);
-        const allParams: Record<string, any> = {};
+        this.applyCommonFilters(qb, filters);
 
-        if (excludeFilePaths && excludeFilePaths.length > 0) {
-            const fileConds: string[] = [];
+        return qb;
+    }
 
-            excludeFilePaths.forEach((path, idx) => {
-                const param = `filePathExclude${idx}`;
-                allParams[param] = `%${path.trim()}%`;
-                fileConds.push(`file.filePath NOT LIKE :${param}`);
-            });
+    private toArray(exception: string): string[] {
+        if (!exception || exception.trim() === '') return [];
+        return exception.split(';').map(path => path.trim()).filter(Boolean);
+    }
 
-            queryBuilder.andWhere(
-                `(${fileConds.join(' AND ')})`,
-                allParams
-            );
-        }
+    async getActiveFiles(
+        filters: Partial<ActiveFileFilters>,
+        page: number = 1,
+        limit: number = 6,
+        statusesOverride?: Array<'active' | 'archived' | 'deleted'>
+    ) {
+        const qb = this.buildFilesBaseQuery(filters, true, statusesOverride);
 
         const skipAmount = (page - 1) * limit;
-        queryBuilder.skip(skipAmount).take(limit);
+        qb.skip(skipAmount).take(limit);
 
-        const [files, totalCount] = await queryBuilder.getManyAndCount();
+        const [files, totalCount] = await qb.getManyAndCount();
 
         return {
             files,
             totalCount,
             page,
-            totalPages: Math.ceil(totalCount / limit),
+            totalPages: limit > 0 ? Math.ceil(totalCount / limit) : 0,
             limit
         };
     }
 
-    async getArchive(
-        filters: Partial<ActiveFileFilters>,
-        page: number = 1,
-        limit: number = 30
-    ) {
-        let queryBuilder = this.activeFileRepo
-            .createQueryBuilder('file')
-            .where('file.status IN (:...statuses)', {
-                statuses: ['archived', 'deleted']
-            });
-
-        if (filters.filePath) {
-            queryBuilder.andWhere('file.filePath LIKE :filePath', {
-                filePath: `%${filters.filePath}%`
-            });
-        }
-
-        if (filters.inode) {
-            queryBuilder.andWhere('file.inode = :inode', {
-                inode: filters.inode
-            });
-        }
-
-        const excludeFilePaths = this.toArray(filters.filePathException);
-        const allParams: Record<string, any> = {};
-
-        if (excludeFilePaths && excludeFilePaths.length > 0) {
-            const fileConds: string[] = [];
-
-            excludeFilePaths.forEach((path, idx) => {
-                const param = `filePathExclude${idx}`;
-                allParams[param] = `%${path.trim()}%`;
-                fileConds.push(`file.filePath NOT LIKE :${param}`);
-            });
-
-            queryBuilder.andWhere(
-                `(${fileConds.join(' AND ')})`,
-                allParams
-            );
-        }
-
-        const skipAmount = (page - 1) * limit;
-        queryBuilder.skip(skipAmount).take(limit);
-
-        const [files, totalCount] = await queryBuilder.getManyAndCount();
-
-        return {
-            files,
-            totalCount,
-            page,
-            totalPages: Math.ceil(totalCount / limit),
-            limit
-        };
+    async getArchive(filters: Partial<ActiveFileFilters>, page: number = 1, limit: number = 30) {
+        return this.getActiveFiles(filters, page, limit, ['archived', 'deleted']);
     }
 
     async updateStatus(dto: UpdateStatusDto, id: number) {
@@ -156,35 +114,10 @@ export class ActiveFilesService {
             query.andWhere('parentFile.inode = :inode', { inode });
         }
 
-        const excludeFilePaths = this.toArray(filePathException);
-        const allParams: Record<string, any> = {};
+        const excludeFilePaths = parsePathException(filePathException);
+        applyNotLikeList(query, 'parentFile', 'filePath', excludeFilePaths, 'both');
+        applyNotLikeList(query, 'childFile', 'filePath', excludeFilePaths, 'both');
 
-        if (excludeFilePaths && excludeFilePaths.length > 0) {
-
-            const parentFileConds: string[] = [];
-            const childFileConds: string[] = [];
-
-            excludeFilePaths.forEach((path, idx) => {
-                const parentParam = `parentFileExclude${idx}`;
-                const childParam = `childFileExclude${idx}`;
-
-                allParams[parentParam] = `%${path.trim()}%`;
-                allParams[childParam] = `%${path.trim()}%`;
-
-                parentFileConds.push(`parentFile.filePath NOT LIKE :${parentParam}`);
-                childFileConds.push(`childFile.filePath NOT LIKE :${childParam}`);
-            });
-
-            query.andWhere(
-                `(${parentFileConds.join(' AND ')})`,
-                allParams
-            );
-
-            query.andWhere(
-                `(${childFileConds.join(' AND ')})`,
-                allParams
-            );
-        }
 
         const rels = await query.getMany();
 
@@ -209,27 +142,4 @@ export class ActiveFilesService {
 
         return groupedRelations;
     }
-
-    private toArray(exception: string): string[] {
-        if (!exception || exception.trim() === '') {
-            return [];
-        }
-
-        const normalizedPath = exception
-            .split('/')
-            .map(part => part.trim())
-            .filter(part => part.length > 0)
-            .join('/')
-
-        const result = normalizedPath
-            .trimEnd()
-            .split(";")
-            .map(path => path.trim())
-            .filter(path => path !== '');
-
-        return result
-    }
 }
-
-
-

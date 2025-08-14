@@ -1,6 +1,7 @@
 import { getRepository, In, SelectQueryBuilder } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { FiltersDto } from "./dto/filters.dto";
+import { log } from "console";
 
 export class SystemLogService {
     private systemLogRepo = getRepository(SystemEvent);
@@ -41,38 +42,40 @@ export class SystemLogService {
 
         const excludeFilePaths = this.toArray(filters.filePathException)
         const excludeProcessPaths = this.toArray(filters.processPathException)
+        log(excludeProcessPaths)
+
+        const allParams: Record<string, any> = {};
 
         if (excludeFilePaths && excludeFilePaths.length > 0) {
-            const fileConds: string[] = []
-            const params: Record<string, any> = {};
+            const fileConds: string[] = [];
 
             excludeFilePaths.forEach((path, idx) => {
                 const param = `filePathExclude${idx}`;
-                params[param] = path.endsWith(`%`) ? path : `%${path}%`;
-                fileConds.push(`file.filePath NOT LIKE :${param}`)
-
-            })
+                allParams[param] = path.endsWith(`%`) ? path : `%${path}%`;
+                fileConds.push(`file.filePath NOT LIKE :${param}`);
+            });
 
             queryBuilder = queryBuilder.andWhere(
                 `(file.filePath IS NULL OR (${fileConds.join(' AND ')}))`,
-                params
+                allParams
             );
         }
+
         if (excludeProcessPaths && excludeProcessPaths.length > 0) {
             const procConds: string[] = [];
-            const params: Record<string, any> = {};
 
             excludeProcessPaths.forEach((path, idx) => {
                 const param = `processPathExclude${idx}`;
-                params[param] = path.endsWith('%') ? path : `${path}%`;
+                allParams[param] = path.endsWith('%') ? path : `%${path}%`;
                 procConds.push(`process.executablePath NOT LIKE :${param}`);
             });
 
             queryBuilder = queryBuilder.andWhere(
                 `(process.executablePath IS NULL OR (${procConds.join(' AND ')}))`,
-                params
+                allParams
             );
         }
+
 
         if (filters.eventType) {
             queryBuilder.andWhere('event.eventType = :eventType', {
@@ -107,7 +110,6 @@ export class SystemLogService {
         ]).getManyAndCount();
 
         this.toArray(filters.filePathException)
-
         return {
             events,
             totalCount,

@@ -1,6 +1,8 @@
 import { Request, Response, Router } from "express";
 import { ReportService } from "./reports.service";
 import { ExceptionsDto, ReportDto } from "./report.dto";
+import { validate } from "../middleware/validate";
+import { eventsReportQueryRules, exceptionsQueryRules } from "./report.volidator";
 const express = require('express');
 
 export class ReportController {
@@ -12,22 +14,29 @@ export class ReportController {
     router: Router
     reportService: ReportService
     initializeRoutes() {
-        this.router.get(`/event/pdf`, this.exportPdf.bind(this))
-        this.router.get(`/event/docx`, this.exportDocx.bind(this))
-        this.router.get(`/event/xlsx`, this.exportXlsx.bind(this))
-        this.router.get(`/chains/pdf`, this.distributionChainsExportPdf.bind(this))
-        this.router.get(`/chains/docx`, this.distributionChainsExportDocx.bind(this))
-        this.router.get(`/chains/xlsx`, this.distributionChainsExportXlsx.bind(this))
+        this.router.get(`/event/pdf`, validate(eventsReportQueryRules), this.exportPdf.bind(this))
+        this.router.get(`/event/docx`, validate(eventsReportQueryRules), this.exportDocx.bind(this))
+        this.router.get(`/event/xlsx`, validate(eventsReportQueryRules), this.exportXlsx.bind(this))
+        this.router.get(`/chains/pdf`, validate(exceptionsQueryRules), this.distributionChainsExportPdf.bind(this))
+        this.router.get(`/chains/docx`, validate(exceptionsQueryRules), this.distributionChainsExportDocx.bind(this))
+        this.router.get(`/chains/xlsx`, validate(exceptionsQueryRules), this.distributionChainsExportXlsx.bind(this))
     }
 
     async exportPdf(req: Request, res: Response) {
-        const filters: Partial<ReportDto> = { ...req.query }
-        const pdfDoc = await this.reportService.getPdfReport(filters)
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
-        pdfDoc.pipe(res)
-        pdfDoc.end();
-    }
+        try {
+            const filters: Partial<ReportDto> = { ...req.query };
+            const buffer = await this.reportService.getPdfReport(filters);
+            res.set({
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': 'attachment; filename="system_logs.pdf"',
+                'Content-Length': buffer.length
+            });
+            res.end(buffer);
+        } catch (error) {
+            console.error('Ошибка генерации PDF:', error);
+            res.status(500).send('Не удалось создать файл');
+        }
+    } 
 
     async exportDocx(req: Request, res: Response) {
         try {

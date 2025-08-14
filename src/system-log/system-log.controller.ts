@@ -2,6 +2,8 @@ import { Request, Response, Router } from "express";
 import { SystemLogService } from './system-log.service'
 import { FiltersDto } from "./dto/filters.dto";
 import { log } from "console";
+import { validate } from "../middleware/validate";
+import { filteredSystemLogQueryRules, selectedLogsQueryRules } from "./system-log.validator";
 
 const express = require('express');
 
@@ -16,8 +18,8 @@ export class SystemLogController {
 
     initializeRoutes() {
         this.router.get('/', this.getSystemLog.bind(this));
-        this.router.get('/filtered', this.getFilteredSystemLog.bind(this));
-        this.router.get('/export/selected', this.getSelectedLogs.bind(this));
+        this.router.get('/filtered', validate(filteredSystemLogQueryRules), this.getFilteredSystemLog.bind(this));
+        this.router.get('/export/selected', validate(selectedLogsQueryRules), this.getSelectedLogs.bind(this));
         this.router.get('/export/all', this.exportCSV.bind(this));
         this.router.get('/get/options', this.getAllOptions.bind(this));
     }
@@ -88,6 +90,8 @@ export class SystemLogController {
         try {
             const result = await this.systemLogService.getAllEventTypeOption()
             return res.json(result)
+
+
         }
         catch (error) {
             console.error("Error in exportCSV:", error);
