@@ -3,6 +3,7 @@ import { ReportService } from "./reports.service";
 import { ExceptionsDto, ReportDto } from "./report.dto";
 import { validate } from "../middleware/validate";
 import { eventsReportQueryRules, exceptionsQueryRules } from "./report.volidator";
+import { asyncHandler } from "../utils/async-handler";
 const express = require('express');
 
 export class ReportController {
@@ -14,12 +15,12 @@ export class ReportController {
     router: Router
     reportService: ReportService
     initializeRoutes() {
-        this.router.get(`/event/pdf`, validate(eventsReportQueryRules), this.exportPdf.bind(this))
-        this.router.get(`/event/docx`, validate(eventsReportQueryRules), this.exportDocx.bind(this))
-        this.router.get(`/event/xlsx`, validate(eventsReportQueryRules), this.exportXlsx.bind(this))
-        this.router.get(`/chains/pdf`, validate(exceptionsQueryRules), this.distributionChainsExportPdf.bind(this))
-        this.router.get(`/chains/docx`, validate(exceptionsQueryRules), this.distributionChainsExportDocx.bind(this))
-        this.router.get(`/chains/xlsx`, validate(exceptionsQueryRules), this.distributionChainsExportXlsx.bind(this))
+        this.router.get(`/events.pdf`, validate(eventsReportQueryRules), asyncHandler(this.exportPdf.bind(this)))
+        this.router.get(`/events.docx`, validate(eventsReportQueryRules), asyncHandler(this.exportDocx.bind(this)))
+        this.router.get(`/events.xlsx`, validate(eventsReportQueryRules), asyncHandler(this.exportXlsx.bind(this)))
+        this.router.get(`/chains.pdf`, validate(exceptionsQueryRules), asyncHandler(this.distributionChainsExportPdf.bind(this)))
+        this.router.get(`/chains.docx`, validate(exceptionsQueryRules), asyncHandler(this.distributionChainsExportDocx.bind(this)))
+        this.router.get(`/chains.xlsx`, validate(exceptionsQueryRules), asyncHandler(this.distributionChainsExportXlsx.bind(this)))
     }
 
     async exportPdf(req: Request, res: Response) {
@@ -36,7 +37,7 @@ export class ReportController {
             console.error('Ошибка генерации PDF:', error);
             res.status(500).send('Не удалось создать файл');
         }
-    } 
+    }
 
     async exportDocx(req: Request, res: Response) {
         try {

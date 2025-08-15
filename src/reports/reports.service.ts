@@ -1,4 +1,4 @@
-import { getRepository } from "typeorm/globals.js";
+import { getRepository } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { TDocumentDefinitions, TFontDictionary } from "pdfmake/interfaces";
 import * as path from 'path';

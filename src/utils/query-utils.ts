@@ -1,7 +1,6 @@
-import { TableRow } from "docx"
 import { SelectQueryBuilder } from "typeorm"
 
-export const parsePathException = (raw?: string): string[] => {
+export const parsePathExceptions = (raw?: string): string[] => {
   if (!raw || typeof raw !== `string`) return []
   return raw.split(';').map(s => s.trim()).filter(Boolean)
 }

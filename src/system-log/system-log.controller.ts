@@ -4,6 +4,7 @@ import { FiltersDto } from "./dto/filters.dto";
 import { log } from "console";
 import { validate } from "../middleware/validate";
 import { filteredSystemLogQueryRules, selectedLogsQueryRules } from "./system-log.validator";
+import { asyncHandler } from "../utils/async-handler";
 
 const express = require('express');
 
@@ -18,10 +19,10 @@ export class SystemLogController {
 
     initializeRoutes() {
         this.router.get('/', this.getSystemLog.bind(this));
-        this.router.get('/filtered', validate(filteredSystemLogQueryRules), this.getFilteredSystemLog.bind(this));
-        this.router.get('/export/selected', validate(selectedLogsQueryRules), this.getSelectedLogs.bind(this));
-        this.router.get('/export/all', this.exportCSV.bind(this));
-        this.router.get('/get/options', this.getAllOptions.bind(this));
+        this.router.get('/search', validate(filteredSystemLogQueryRules), asyncHandler(this.getFilteredSystemLog.bind(this)));
+        this.router.get('/export.csv', validate(selectedLogsQueryRules), asyncHandler(this.getSelectedLogs.bind(this)));
+        this.router.get('/export/all', asyncHandler(this.exportCSV.bind(this)));
+        this.router.get('/options', asyncHandler(this.getAllOptions.bind(this)));
     }
 
     async getSystemLog(req: Request, res: Response) {
@@ -43,6 +44,7 @@ export class SystemLogController {
             };
             log(filters)
             const result = await this.systemLogService.getFilteredSystemEvents(filters, filters.page, filters.limit);
+            log(result)
             return res.status(200).json(result);
         } catch (error) {
             console.error("Error in getFilteredSystem:", error);
@@ -86,12 +88,11 @@ export class SystemLogController {
             });
         }
     }
+
     async getAllOptions(req: Request, res: Response) {
         try {
             const result = await this.systemLogService.getAllEventTypeOption()
             return res.json(result)
-
-
         }
         catch (error) {
             console.error("Error in exportCSV:", error);
@@ -100,7 +101,6 @@ export class SystemLogController {
             });
         }
     }
-
 
     getRouter() {
         return this.router;

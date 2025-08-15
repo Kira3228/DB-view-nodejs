@@ -15,8 +15,8 @@ import { ActiveFileController } from "./active-file/active-file.controller";
 import cors from 'cors'
 import { ReportController } from "./reports/reports.controller";
 import { validate } from "./middleware/validate";
+import { errorHandler } from "./middleware/error-handler";
 
-// Увеличиваем лимит слушателей событий
 EventEmitter.defaultMaxListeners = 15;
 
 async function bootstrap() {
@@ -36,9 +36,11 @@ async function bootstrap() {
             FileAccessEvent
         ],
     });
+    
     const systemLogController = new SystemLogController();
     const activeFileController = new ActiveFileController()
     const reportController = new ReportController();
+    
     const app = express();
     const PORT = 3000;
 
@@ -48,7 +50,7 @@ async function bootstrap() {
     app.use('/api/logs', systemLogController.getRouter());
     app.use('/api/active', activeFileController.getRouter())
     app.use(`/api/reports`, reportController.getRouter())
-
+    app.use(errorHandler)
 
     app.listen(PORT, () => {
         console.log(`Server is running on http://localhost:${PORT}`);

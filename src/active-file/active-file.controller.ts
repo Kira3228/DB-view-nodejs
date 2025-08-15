@@ -4,6 +4,7 @@ import { ActiveFileFilters } from "./dto/acrive-file.dto";
 import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { validate } from "../middleware/validate";
 import { graphQueryRules, listActiveFilesQueryRules, updateStatusRules } from "./active-file.validator";
+import { asyncHandler } from "../utils/async-handler";
 
 export class ActiveFileController {
     constructor() {
@@ -15,10 +16,10 @@ export class ActiveFileController {
     activeFileService: ActiveFilesService
 
     initializeRoutes() {
-        this.router.get('/get/active', validate(listActiveFilesQueryRules), this.getActive.bind(this));
-        this.router.get('/get/archive', validate(listActiveFilesQueryRules), this.getArchive.bind(this));
-        this.router.patch('/get/active/update/:id', validate(updateStatusRules), this.updateStatus.bind(this));
-        this.router.get('/get/graph', validate(graphQueryRules), this.graph.bind(this));
+        this.router.get('/', validate(listActiveFilesQueryRules), asyncHandler(this.getActive.bind(this)));
+        this.router.get('/archive', validate(listActiveFilesQueryRules), asyncHandler(this.getArchive.bind(this)));
+        this.router.patch('/:id/status', validate(updateStatusRules), asyncHandler(this.updateStatus.bind(this)));
+        this.router.get('/graph', validate(graphQueryRules), asyncHandler(this.graph.bind(this)));
     }
 
     async getActive(req: Request, res: Response) {
