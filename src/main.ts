@@ -16,6 +16,7 @@ import cors from 'cors'
 import { ReportController } from "./reports/reports.controller";
 import { validate } from "./middleware/validate";
 import { errorHandler } from "./middleware/error-handler";
+import { UnibersalGettingController } from "./universal-getting/universal-getting.controller";
 
 EventEmitter.defaultMaxListeners = 15;
 
@@ -36,11 +37,13 @@ async function bootstrap() {
             FileAccessEvent
         ],
     });
-    
+
     const systemLogController = new SystemLogController();
     const activeFileController = new ActiveFileController()
     const reportController = new ReportController();
-    
+    const unibersalGettingController = new UnibersalGettingController()
+
+
     const app = express();
     const PORT = 3000;
 
@@ -48,8 +51,9 @@ async function bootstrap() {
     app.use(cors())
     app.use(validate([]))
     app.use('/api/logs', systemLogController.getRouter());
-    app.use('/api/active', activeFileController.getRouter())
+    app.use('/api/files', activeFileController.getRouter())
     app.use(`/api/reports`, reportController.getRouter())
+    app.use(`/api/universal`, unibersalGettingController.getRouter())
     app.use(errorHandler)
 
     app.listen(PORT, () => {

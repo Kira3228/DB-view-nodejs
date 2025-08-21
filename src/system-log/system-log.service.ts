@@ -1,9 +1,11 @@
-import { getRepository, In, SelectQueryBuilder } from "typeorm";
+import { getConnection, getRepository, In, SelectQueryBuilder } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { FiltersDto } from "./dto/filters.dto";
 import { applyNotLikeList, parsePathExceptions } from "../utils/query-utils";
 import { paginate } from "../utils/pagination";
 import { NotFoundError } from "../errors/http-errors";
+import { log } from "console";
+
 
 export class SystemLogService {
     private systemLogRepo = getRepository(SystemEvent);
@@ -95,26 +97,27 @@ export class SystemLogService {
         queryBuilder: SelectQueryBuilder<SystemEvent>,
         filters: FiltersDto
     ) {
-        const startDate = new Date(filters.startDate).toISOString().replace('T', ' ').slice(0, 19);
-        const endDate = new Date(filters.endDate).toISOString().replace('T', ' ').slice(0, 19);
-        if (filters.startDate && filters.endDate) {
+        function normalizeDate(dateStr?: string): string | undefined {
+            if (!dateStr) return undefined
+            const d = new Date(dateStr)
+            if (isNaN(d.getTime())) return undefined
+            return d.toISOString().replace(`T`, " ").slice(0, 19)
+        }
+        const startDate = normalizeDate(filters.startDate)
+        const endDate = normalizeDate(filters.endDate)
+        log(typeof startDate, typeof endDate)
+
+        if (startDate && endDate) {
             queryBuilder.andWhere(
                 'event.timestamp BETWEEN :startDate AND :endDate',
-                {
-                    startDate: startDate,
-                    endDate: endDate
-                }
+                { startDate, endDate }
             );
         } else {
-            if (filters.startDate) {
-                queryBuilder.andWhere('event.timestamp >= :startDate', {
-                    startDate: startDate
-                });
+            if (startDate) {
+                queryBuilder.andWhere('event.timestamp >= :startDate', { startDate });
             }
-            if (filters.endDate) {
-                queryBuilder.andWhere('event.timestamp <= :endDate', {
-                    endDate: endDate
-                });
+            if (endDate) {
+                queryBuilder.andWhere('event.timestamp <= :endDate', { endDate });
             }
         }
     }

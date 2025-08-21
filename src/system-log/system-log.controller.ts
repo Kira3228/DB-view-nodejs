@@ -5,6 +5,7 @@ import { log } from "console";
 import { validate } from "../middleware/validate";
 import { filteredSystemLogQueryRules, selectedLogsQueryRules } from "./system-log.validator";
 import { asyncHandler } from "../utils/async-handler";
+import { ThickUnderline } from "docx";
 
 const express = require('express');
 
@@ -23,10 +24,12 @@ export class SystemLogController {
         this.router.get('/export.csv', validate(selectedLogsQueryRules), asyncHandler(this.getSelectedLogs.bind(this)));
         this.router.get('/export/all', asyncHandler(this.exportCSV.bind(this)));
         this.router.get('/options', asyncHandler(this.getAllOptions.bind(this)));
+        
     }
 
+
     async getSystemLog(req: Request, res: Response) {
-        console.log('Fetching system logs...');
+
         try {
             const result = await this.systemLogService.getSystemEvents();
             return res.status(201).json(result);
@@ -40,11 +43,10 @@ export class SystemLogController {
         try {
             const filters: FiltersDto = {
                 ...req.query,
-
             };
             log(filters)
             const result = await this.systemLogService.getFilteredSystemEvents(filters, filters.page, filters.limit);
-            log(result)
+            // log(result)
             return res.status(200).json(result);
         } catch (error) {
             console.error("Error in getFilteredSystem:", error);
