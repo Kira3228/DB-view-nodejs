@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import { UniversalGettingService } from "./universal-getting.service";
+import { QueryConfig } from "./dto/query-config";
 
 const express = require('express');
 
@@ -15,7 +16,8 @@ export class UnibersalGettingController {
   private service: UniversalGettingService
   private initializeRoutes() {
     this.router.get(`/tables`, this.getTablesName.bind(this));
-    this.router.get(`/fields`, this.getFieldsName.bind(this));
+    this.router.get(`/v2/:table/fields`, this.getFieldsName.bind(this));
+    this.router.post(`/data`, this.getData.bind(this))
   }
   async getTablesName(req: Request, res: Response) {
     try {
@@ -29,8 +31,22 @@ export class UnibersalGettingController {
 
   async getFieldsName(req: Request, res: Response) {
     try {
-      const result = await this.service.getFieldsName()
+      const tableName = req.params.table
+      const result = await this.service.getFieldsName(tableName)
       return res.status(200).json(result)
+    }
+    catch {
+
+    }
+  }
+
+  async getData(req: Request, res: Response) {
+    try {
+      // const query: Partial<QueryConfig> = { ...req.query }
+      const query: QueryConfig = { ...req.body }
+      const result = await this.service.getData(query)
+
+      res.status(200).json(result)
     }
     catch {
 
@@ -39,9 +55,7 @@ export class UnibersalGettingController {
 
   async test(req: Request, res: Response) {
     try {
-
       const result = await this.service.getUsers()
-
       return res.status(200).json(result);
     } catch (error) {
       console.error("Error in getFilteredSystem:", error);
