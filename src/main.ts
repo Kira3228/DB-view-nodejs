@@ -17,6 +17,8 @@ import { ReportController } from "./reports/reports.controller";
 import { validate } from "./middleware/validate";
 import { errorHandler } from "./middleware/error-handler";
 import { UnibersalGettingController } from "./universal-getting/universal-getting.controller";
+import { FileChainsView } from "./entities/FileChainsView";
+import { FileChainsController } from "./file-chains/file-chains.controller";
 
 EventEmitter.defaultMaxListeners = 15;
 
@@ -34,7 +36,8 @@ async function bootstrap() {
             MonitoredFile,
             FileRelationship,
             FileOrigin,
-            FileAccessEvent
+            FileAccessEvent,
+            FileChainsView
         ],
     });
 
@@ -42,7 +45,7 @@ async function bootstrap() {
     const activeFileController = new ActiveFileController()
     const reportController = new ReportController();
     const unibersalGettingController = new UnibersalGettingController()
-
+    const fileChainsController = new FileChainsController()
 
     const app = express();
     const PORT = 3000;
@@ -54,6 +57,9 @@ async function bootstrap() {
     app.use('/api/files', activeFileController.getRouter())
     app.use(`/api/reports`, reportController.getRouter())
     app.use(`/api/universal`, unibersalGettingController.getRouter())
+    app.use(`/api/chains`, fileChainsController.getRouter())
+
+
     app.use(errorHandler)
 
     app.listen(PORT, () => {

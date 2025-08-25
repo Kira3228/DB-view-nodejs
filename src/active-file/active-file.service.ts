@@ -5,6 +5,7 @@ import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { FileRelationship } from "../entities/file_relationships.entity";
 import { applyNotLikeList, parsePathExceptions } from "../utils/query-utils";
 import { paginate } from "../utils/pagination";
+import { INode } from "./graph.type";
 
 export class ActiveFilesService {
     private activeFileRepo = getRepository(MonitoredFile)
@@ -123,5 +124,60 @@ export class ActiveFilesService {
         }, {});
 
         return groupedRelations;
+    }
+
+    async relationGraph(filePath?: string, inode?: number, filePathException?: string) {
+        const qb = this.relationRepo
+            .createQueryBuilder(`rel`)
+            .leftJoinAndSelect(`rel.parentFile`, `parent`)
+            .leftJoinAndSelect(`rel.childFile`, `child`)
+
+        if (filePath) {
+            qb.andWhere(`parent.filePath LIKE :fp`, { fp: `%${filePath}` })
+        }
+        if (inode) {
+            qb.andWhere(`parent.inode = :inode`, { inode })
+        }
+
+        const excl = parsePathExceptions(filePathException)
+        applyNotLikeList(qb, `parent`, `filePath`, excl, `both`)
+        applyNotLikeList(qb, `child`, `filePath`, excl, `both`)
+
+        const relations = await qb.getMany()
+
+        const nodes = new Map<number, INode>()
+
+        const getNode = (file: MonitoredFile): INode => {
+            let n = nodes.get(file.id)
+            if (!n) {
+                n = { file: file, edges: [] }
+                nodes.set(file.id, n);
+            }
+            return n
+        }
+
+        const hasParent = new Set<number>()
+
+        for (const rel of relations) {
+            const from = getNode(rel.parentFile)
+            const to = getNode(rel.childFile)
+
+            from.edges.push(
+                {
+                    type: rel.relationshipType,
+                    to: to,
+                    createdAt: rel.createdAt
+                }
+            )
+            hasParent.add(rel.childFileId);
+
+        }
+
+        const resultRelations = [...nodes.values()].filter(n => !hasParent.has(n.file.id));
+        return {
+            relations,
+            resultRelations
+        }
+
     }
 }

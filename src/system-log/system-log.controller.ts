@@ -24,7 +24,7 @@ export class SystemLogController {
         this.router.get('/export.csv', validate(selectedLogsQueryRules), asyncHandler(this.getSelectedLogs.bind(this)));
         this.router.get('/export/all', asyncHandler(this.exportCSV.bind(this)));
         this.router.get('/options', asyncHandler(this.getAllOptions.bind(this)));
-        
+
     }
 
 

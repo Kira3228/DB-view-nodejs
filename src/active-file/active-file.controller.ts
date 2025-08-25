@@ -45,7 +45,7 @@ export class ActiveFileController {
         const body = req.query
         const filePath = body.filePath
         const inode = body.inode
-        const result = await this.activeFileService.graph(filePath as string, Number(inode), body.filePathExceptions as string);
+        const result = await this.activeFileService.relationGraph(filePath as string, Number(inode), body.filePathExceptions as string);
         return res.status(200).json(result)
     }
 
