@@ -128,56 +128,64 @@ export class ActiveFilesService {
 
     async relationGraph(filePath?: string, inode?: number, filePathException?: string) {
         const qb = this.relationRepo
-            .createQueryBuilder(`rel`)
-            .leftJoinAndSelect(`rel.parentFile`, `parent`)
-            .leftJoinAndSelect(`rel.childFile`, `child`)
+            .createQueryBuilder('rel')
+            .leftJoinAndSelect('rel.parentFile', 'parent')
+            .leftJoinAndSelect('rel.childFile', 'child')
 
         if (filePath) {
-            qb.andWhere(`parent.filePath LIKE :fp`, { fp: `%${filePath}` })
+            qb.andWhere('parent.filePath LIKE :fp', { fp: `%${filePath}%` })
         }
         if (inode) {
-            qb.andWhere(`parent.inode = :inode`, { inode })
+            qb.andWhere('parent.inode = :inode', { inode })
         }
 
         const excl = parsePathExceptions(filePathException)
-        applyNotLikeList(qb, `parent`, `filePath`, excl, `both`)
-        applyNotLikeList(qb, `child`, `filePath`, excl, `both`)
+        applyNotLikeList(qb, 'parent', 'filePath', excl, 'both')
+        applyNotLikeList(qb, 'child', 'filePath', excl, 'both')
 
         const relations = await qb.getMany()
 
-        const nodes = new Map<number, INode>()
-
-        const getNode = (file: MonitoredFile): INode => {
-            let n = nodes.get(file.id)
-            if (!n) {
-                n = { file: file, edges: [] }
-                nodes.set(file.id, n);
-            }
-            return n
-        }
-
+        const nodes = new Map<number, MonitoredFile>()
+        const edges: Edge[] = []
+        const edgeKeys = new Set<string>()
         const hasParent = new Set<number>()
 
+        const norm = (s?: string) => (s ?? '').trim().toLowerCase()
+
         for (const rel of relations) {
-            const from = getNode(rel.parentFile)
-            const to = getNode(rel.childFile)
+            const fromId = rel.parentFileId
+            const toId = rel.childFileId
 
-            from.edges.push(
-                {
+            if (!nodes.has(fromId)) nodes.set(fromId, rel.parentFile)
+            if (!nodes.has(toId)) nodes.set(toId, rel.childFile)
+
+            const key = `${fromId}-${toId}-${norm(rel.relationshipType)}`
+            if (!edgeKeys.has(key)) {
+                edges.push({
                     type: rel.relationshipType,
-                    to: to,
-                    createdAt: rel.createdAt
-                }
-            )
-            hasParent.add(rel.childFileId);
-
+                    fromId,
+                    toId,
+                    createdAt: rel.createdAt,
+                })
+                edgeKeys.add(key)
+                hasParent.add(toId)
+            }
         }
 
-        const resultRelations = [...nodes.values()].filter(n => !hasParent.has(n.file.id));
+        const roots = Array.from(nodes.keys()).filter(id => !hasParent.has(id))
+
         return {
-            relations,
-            resultRelations
+            nodes: Array.from(nodes.values()),
+            edges,
+            roots,
         }
-
     }
+
+}
+
+type Edge = {
+    type: string
+    fromId: number
+    toId: number
+    createdAt: Date
 }
