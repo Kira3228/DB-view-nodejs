@@ -21,12 +21,22 @@ export class SystemLogController {
     initializeRoutes() {
         this.router.get('/', this.getSystemLog.bind(this));
         this.router.get('/search', validate(filteredSystemLogQueryRules), asyncHandler(this.getFilteredSystemLog.bind(this)));
+        this.router.get('/headers', validate(filteredSystemLogQueryRules), asyncHandler(this.getSystemLogHeaders.bind(this)));
         this.router.get('/export.csv', validate(selectedLogsQueryRules), asyncHandler(this.getSelectedLogs.bind(this)));
         this.router.get('/export/all', asyncHandler(this.exportCSV.bind(this)));
         this.router.get('/options', asyncHandler(this.getAllOptions.bind(this)));
 
     }
 
+    async getSystemLogHeaders(req: Request, res: Response) {
+        try {
+            const result = await this.systemLogService.getHeaders();
+            return res.status(201).json(result);
+        }
+        catch (err) {
+
+        }
+    }
 
     async getSystemLog(req: Request, res: Response) {
 

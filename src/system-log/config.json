@@ -6,16 +6,16 @@
       "name": "Стандартный вид",
       "event_log_table_headers": [
         {
-          "text": "Данные события",
-          "value": "event.eventData",
+          "text": "Время",
+          "value": "event.timestamp",
           "align": "start",
           "sortable": true,
           "isVisible": true,
           "width": 80
         },
         {
-          "text": "Время",
-          "value": "event.timestamp",
+          "text": "Данные события",
+          "value": "event.eventData",
           "align": "start",
           "sortable": true,
           "isVisible": true,
