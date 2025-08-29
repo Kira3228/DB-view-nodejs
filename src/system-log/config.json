@@ -1,0 +1,171 @@
+{
+  "table_id": "event_log",
+  "default_preset": "standart",
+  "presets": {
+    "standart": {
+      "name": "Стандартный вид",
+      "event_log_table_headers": [
+        {
+          "text": "Данные события",
+          "value": "event.eventData",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "Время",
+          "value": "event.timestamp",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "Тип",
+          "value": "event.eventType",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "Источник",
+          "value": "event.source",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "ID файла",
+          "value": "file.id",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "Путь к файлу",
+          "value": "file.filePath",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "Имя файла",
+          "value": "file.fileName",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "Статус файла",
+          "value": "file.status",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "ID файловой системы",
+          "value": "file.fileSystemId",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "ID процесса",
+          "value": "process.id",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "PID",
+          "value": "process.pid",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "ID пользователя",
+          "value": "user.id",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "Имя пользователя",
+          "value": "user.userName",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "ID события",
+          "value": "event.id",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        }
+      ]
+    },
+    "short": {
+      "name": "Короткий",
+      "visible_fields": [
+        "event.eventData",
+        "event.timestamp",
+        "event.eventType",
+        "event.source",
+        "file.filePath",
+        "file.fileName",
+        "file.status",
+        "file.fileSystemId",
+        "process.pid"
+      ],
+      "fields_order": [
+        "event.eventData",
+        "event.timestamp",
+        "event.eventType",
+        "event.source",
+        "file.filePath",
+        "file.fileName",
+        "file.status",
+        "file.fileSystemId",
+        "process.pid"
+      ],
+      "field_widths": {
+        "event.eventData": 80,
+        "event.timestamp": 80,
+        "event.eventType": 80,
+        "event.source": 80,
+        "file.filePath": 80,
+        "file.fileName": 80,
+        "file.status": 80,
+        "file.fileSystemId": 80,
+        "process.pid": 80
+      },
+      "default_sort": [
+        {
+          "field": "file.fileName",
+          "direction": "desc",
+          "priority": 1
+        },
+        {
+          "field": "file.filePath",
+          "direction": "asc",
+          "priority": 2
+        }
+      ]
+    }
+  }
+}
