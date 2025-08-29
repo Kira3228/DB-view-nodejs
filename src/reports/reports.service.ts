@@ -1,4 +1,4 @@
-import { getRepository } from "typeorm/globals.js";
+import { getRepository } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { TDocumentDefinitions, TFontDictionary } from "pdfmake/interfaces";
 import * as path from 'path';
@@ -40,45 +40,15 @@ export class ReportService {
     private readonly robotoFontPath = path.resolve(__dirname, '../assets/Roboto.ttf');
 
     async getPdfReport(filters: Partial<ReportDto>) {
-        const { selectFields, fieldNames } = this.buildEventSelect(filters);
-        const dateRange =
-        {
-            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
-            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
-        }
-        const excludeFilePaths = this.exceptionsToArray(filters.fileExceptions)
-        const excludeProcessPaths = this.exceptionsToArray(filters.processExceptions)
-        const events = await this.getEvents(selectFields, excludeFilePaths, excludeProcessPaths, dateRange.startDate, dateRange.endDate)
-        const flattenedData = this.preparePdfData(events, fieldNames);
-        return this.generatePdf(flattenedData, fieldNames);
+        return this.generateReport(filters, (data, headers) => this.generatePdf(data, headers))
     }
 
     async getDocxReport(filters: Partial<ReportDto>) {
-        const { selectFields, fieldNames } = this.buildEventSelect(filters);
-        const dateRange =
-        {
-            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
-            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
-        }
-        const excludeFilePaths = this.exceptionsToArray(filters.fileExceptions)
-        const excludeProcessPaths = this.exceptionsToArray(filters.processExceptions)
-        const events = await this.getEvents(selectFields, excludeFilePaths, excludeProcessPaths, dateRange.startDate, dateRange.endDate)
-        const flattenedData = this.preparePdfData(events, fieldNames);
-        return this.generateDocx(flattenedData, fieldNames)
+        return this.generateReport(filters, (data, headers) => this.generateDocx(data, headers))
     }
 
     async getXlsxReport(filters: Partial<ReportDto>) {
-        const { selectFields, fieldNames } = this.buildEventSelect(filters);
-        const dateRange =
-        {
-            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
-            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
-        }
-        const excludeFilePaths = this.exceptionsToArray(filters.fileExceptions)
-        const excludeProcessPaths = this.exceptionsToArray(filters.processExceptions)
-        const events = await this.getEvents(selectFields, excludeFilePaths, excludeProcessPaths, dateRange.startDate, dateRange.endDate)
-        const flattenedData = this.preparePdfData(events, fieldNames);
-        return this.generateXlsx(flattenedData, fieldNames)
+        return this.generateReport(filters, (data, headers) => this.generateXlsx(data, headers))
     }
 
     async getChainsPdf(filters: Partial<ExceptionsDto>) {
@@ -108,14 +78,32 @@ export class ReportService {
         return this.genearteChainsXlsx(chains)
     };
 
-    private exceptionsToArray(exceptions?: string): string[] {
-        if (!exceptions) {
-            return [];
+    private async generateReport(filters: Partial<ReportDto>, generator: (data: string[][], headers: TableHeader[]) => Promise<Buffer> | PDFKit.PDFDocument) {
+        const { selectFields, fieldNames } = this.buildEventSelect(filters)
+        const dateRange = {
+            startDate: new Date(Number(filters.startDate)).toISOString().replace(`T`, " ").replace(`.000Z`, ''),
+            endDate: new Date(Number(filters.endDate)).toISOString().replace(`T`, " ").replace(`.000Z`, '')
         }
-        const rawString = exceptions.split('\n')
-        const cleaned = rawString
-            .map(part => part.trim())
-        return cleaned
+
+        const excludeFilePaths = this.exceptionsToArray(filters.fileExceptions)
+        const excludeProcessPaths = this.exceptionsToArray(filters.processExceptions)
+
+        const events = await this.getEvents(
+            selectFields,
+            excludeFilePaths,
+            excludeProcessPaths,
+            dateRange.startDate,
+            dateRange.endDate
+        )
+
+        const flattenData = this.preparePdfData(events, fieldNames)
+
+        return generator(flattenData, fieldNames)
+
+    }
+
+    private exceptionsToArray(exceptions?: string): string[] {
+        return exceptions ? exceptions.split('\n').map(s => s.trim()).filter(Boolean) : [];
     }
 
     private async getEvents(
@@ -228,24 +216,21 @@ export class ReportService {
 
     private flattenObj(obj: any, prefix: string = ''): any {
         const result: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+            if (value === undefined) continue;
+            const newKey = prefix ? `${prefix}_${key}` : key;
 
-        for (const key in obj) {
-
-            if (obj.hasOwnProperty(key) && obj[key] !== undefined) {
-                const value = obj[key];
-                const newKey = prefix ? `${prefix}_${key}` : key;
-                if (value instanceof Date) {
-                    result[newKey] = value.toISOString().replace('T', ' ').replace('.000Z', '');
-                }
-                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                    Object.assign(result, this.flattenObj(value, newKey));
-                } else {
-                    result[newKey] = value;
-                }
+            if (value instanceof Date) {
+                result[newKey] = value.toISOString().replace('T', ' ').replace('.000Z', '');
+            } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                Object.assign(result, this.flattenObj(value, newKey));
+            } else {
+                result[newKey] = value;
             }
         }
         return result;
     }
+
 
     private buildEventSelect(field: DeepPartialFlags<SystemEvent>) {
         const selectFields: string[] = [];
@@ -301,27 +286,21 @@ export class ReportService {
         }
     }
 
-    private generatePdf(flattenDatd: string[][], fieldNames: TableHeader[]): PDFKit.PDFDocument {
+    private generatePdf(flattenDatd: string[][], fieldNames: TableHeader[]): Promise<Buffer> {
         const fonts: TFontDictionary = {
             Roboto: {
                 normal: this.robotoFontPath,
                 bold: this.robotoFontPath,
                 italics: this.robotoFontPath,
-                bolditalics: this.robotoFontPath
-            }
+                bolditalics: this.robotoFontPath,
+            },
         };
 
         const printer = new PdfPrinter(fonts);
         const headers = fieldNames.map(f => f.text);
+        const tableBody = [headers, ...flattenDatd];
 
-        const tableBody = [
-            headers,
-            ...flattenDatd
-        ];
-
-        const columnCount = fieldNames.length;
-
-        const widths = new Array(columnCount).fill('auto');
+        const widths = new Array(fieldNames.length).fill('auto');
 
         const docDefinition: TDocumentDefinitions = {
             content: [
@@ -330,43 +309,35 @@ export class ReportService {
                 {
                     table: {
                         headerRows: 1,
-                        widths: widths,
+                        widths,
                         dontBreakRows: true,
-                        body: tableBody
+                        body: tableBody,
                     },
                     layout: {
-                        fillColor: (rowIndex) => {
-                            return rowIndex === 0 ? '#CCCCCC' : (rowIndex % 2 === 0 ? '#F5F5F5' : null);
-                        }
-                    }
-                }
+                        fillColor: (rowIndex: number) => (rowIndex === 0 ? '#CCCCCC' : rowIndex % 2 === 0 ? '#F5F5F5' : null),
+                    },
+                },
             ],
             styles: {
-                header: {
-                    fontSize: 18,
-                    bold: true,
-                    margin: [0, 0, 0, 10],
-                    alignment: 'center'
-                },
-                subheader: {
-                    fontSize: 10,
-                    margin: [0, 0, 0, 10],
-                    alignment: 'center',
-                },
-                tableHeader: {
-                    bold: true,
-                    fontSize: 8,
-                    color: 'black'
-                }
+                header: { fontSize: 18, bold: true, margin: [0, 0, 0, 10], alignment: 'center' },
+                subheader: { fontSize: 10, margin: [0, 0, 0, 10], alignment: 'center' },
+                tableHeader: { bold: true, fontSize: 8, color: 'black' },
             },
-            defaultStyle: {
-                font: 'Roboto',
-                fontSize: 5
-            },
+            defaultStyle: { font: 'Roboto', fontSize: 5 },
             pageSize: 'A4',
         };
-        return printer.createPdfKitDocument(docDefinition);
+
+        const pdfDoc = printer.createPdfKitDocument(docDefinition);
+
+        return new Promise<Buffer>((resolve, reject) => {
+            const chunks: Buffer[] = [];
+            pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
+            pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+            pdfDoc.on('error', (err: Error) => reject(err));
+            pdfDoc.end();
+        });
     }
+
 
     private async generateDocx(flattenData: string[][], fieldNames: TableHeader[]) {
         const doc = new Document()

@@ -14,8 +14,12 @@ import { SystemLogController } from "./system-log/system-log.controller";
 import { ActiveFileController } from "./active-file/active-file.controller";
 import cors from 'cors'
 import { ReportController } from "./reports/reports.controller";
+import { validate } from "./middleware/validate";
+import { errorHandler } from "./middleware/error-handler";
+import { UnibersalGettingController } from "./universal-getting/universal-getting.controller";
+import { FileChainsView } from "./entities/FileChainsView";
+import { FileChainsController } from "./file-chains/file-chains.controller";
 
-// Увеличиваем лимит слушателей событий
 EventEmitter.defaultMaxListeners = 15;
 
 async function bootstrap() {
@@ -32,21 +36,31 @@ async function bootstrap() {
             MonitoredFile,
             FileRelationship,
             FileOrigin,
-            FileAccessEvent
+            FileAccessEvent,
+            FileChainsView
         ],
     });
+
     const systemLogController = new SystemLogController();
     const activeFileController = new ActiveFileController()
     const reportController = new ReportController();
+    const unibersalGettingController = new UnibersalGettingController()
+    const fileChainsController = new FileChainsController()
+
     const app = express();
     const PORT = 3000;
 
     app.use(express.json());
     app.use(cors())
+    app.use(validate([]))
     app.use('/api/logs', systemLogController.getRouter());
-    app.use('/api/active', activeFileController.getRouter())
+    app.use('/api/files', activeFileController.getRouter())
     app.use(`/api/reports`, reportController.getRouter())
+    app.use(`/api/universal`, unibersalGettingController.getRouter())
+    app.use(`/api/chains`, fileChainsController.getRouter())
 
+
+    app.use(errorHandler)
 
     app.listen(PORT, () => {
         console.log(`Server is running on http://localhost:${PORT}`);
