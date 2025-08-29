@@ -117,55 +117,21 @@
           "isVisible": true,
           "width": 80
         }
-      ]
-    },
-    "short": {
-      "name": "Короткий",
-      "visible_fields": [
-        "event.eventData",
-        "event.timestamp",
-        "event.eventType",
-        "event.source",
-        "file.filePath",
-        "file.fileName",
-        "file.status",
-        "file.fileSystemId",
-        "process.pid"
       ],
-      "fields_order": [
-        "event.eventData",
-        "event.timestamp",
-        "event.eventType",
-        "event.source",
-        "file.filePath",
-        "file.fileName",
-        "file.status",
-        "file.fileSystemId",
-        "process.pid"
-      ],
-      "field_widths": {
-        "event.eventData": 80,
-        "event.timestamp": 80,
-        "event.eventType": 80,
-        "event.source": 80,
-        "file.filePath": 80,
-        "file.fileName": 80,
-        "file.status": 80,
-        "file.fileSystemId": 80,
-        "process.pid": 80
+      "exceptions": {
+        "file_path": [],
+        "fileSystemId": []
       },
-      "default_sort": [
-        {
-          "field": "file.fileName",
-          "direction": "desc",
-          "priority": 1
-        },
-        {
-          "field": "file.filePath",
-          "direction": "asc",
-          "priority": 2
-        }
-      ]
+      "default_filters": {}
+    },
+    "small": {
+      "name": "Маленький",
+      "event_log_table_headers": [],
+      "exceptions": {
+        "file_path": [],
+        "fileSystemId": []
+      },
+      "default_filters": {}
     }
   }
 }
