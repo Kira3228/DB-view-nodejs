@@ -1,10 +1,11 @@
 {
   "table_id": "active_files",
   "default_preset": "standart",
-  "presets": {
-    "standart": {
+  "presets": [
+    {
+      "presetName": "standart",
       "name": "Стандартный вид",
-      "active_files_table_headers": [
+      "headers": [
         {
           "text": "ID",
           "value": "id",
@@ -64,19 +65,43 @@
         }
       ],
       "exceptions": {
-        "file_path": [],
+        "filePath": [],
         "inode": []
       },
       "default_filters": {}
     },
-    "small": {
+    {
+      "presetName": "small",
       "name": "Маленький",
-      "active_files_table_headers": [],
+      "headers": [
+        {
+          "text": "ID",
+          "value": "id",
+          "sortable": false,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "Путь",
+          "value": "filePath",
+          "sortable": true,
+          "isVisible": true,
+          "width": 120
+        },
+        {
+          "text": "Статус",
+          "value": "status",
+          "align": "center",
+          "sortable": true,
+          "isVisible": true,
+          "width": 100
+        }
+      ],
       "exceptions": {
         "file_path": [],
         "fileSystemId": []
       },
       "default_filters": {}
     }
-  }
+  ]
 }

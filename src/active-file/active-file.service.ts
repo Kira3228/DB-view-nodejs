@@ -5,7 +5,7 @@ import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { FileRelationship } from "../entities/file_relationships.entity";
 import { applyNotLikeList, parsePathExceptions } from "../utils/query-utils";
 import { paginate } from "../utils/pagination";
-import { INode } from "./graph.type";
+
 import tableConfig from './config.json'
 
 interface TablePreset {
@@ -36,6 +36,9 @@ export class ActiveFilesService {
 
     async getHeaders(presetName?: string) {
         return this.getPreset(presetName).active_files_table_headers
+    }
+    async getPresetNames() {
+        return this.config
     }
 
     private applyCommonFilters(

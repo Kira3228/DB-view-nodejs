@@ -21,12 +21,23 @@ export class ActiveFileController {
         this.router.get('/archive', validate(listActiveFilesQueryRules), asyncHandler(this.getArchive.bind(this)));
         this.router.patch('/:id/status', validate(updateStatusRules), asyncHandler(this.updateStatus.bind(this)));
         this.router.get('/graph', validate(graphQueryRules), asyncHandler(this.graph.bind(this)));
+        this.router.get('/presets', validate(graphQueryRules), asyncHandler(this.getPresetNames.bind(this)));
     }
 
     async getHeaders(req: Request, res: Response) {
         try {
             const headers = await this.activeFileService.getHeaders()
             res.status(200).json(headers)
+        }
+        catch (err) {
+
+        }
+    }
+
+    async getPresetNames(req: Request, res: Response) {
+        try {
+            const names = await this.activeFileService.getPresetNames()
+            res.status(200).json(names)
         }
         catch (err) {
 
