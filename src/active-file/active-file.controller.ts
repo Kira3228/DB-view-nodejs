@@ -17,9 +17,20 @@ export class ActiveFileController {
 
     initializeRoutes() {
         this.router.get('/active', validate(listActiveFilesQueryRules), asyncHandler(this.getActive.bind(this)));
+        this.router.get('/headers', validate(listActiveFilesQueryRules), asyncHandler(this.getHeaders.bind(this)));
         this.router.get('/archive', validate(listActiveFilesQueryRules), asyncHandler(this.getArchive.bind(this)));
         this.router.patch('/:id/status', validate(updateStatusRules), asyncHandler(this.updateStatus.bind(this)));
         this.router.get('/graph', validate(graphQueryRules), asyncHandler(this.graph.bind(this)));
+    }
+
+    async getHeaders(req: Request, res: Response) {
+        try {
+            const headers = await this.activeFileService.getHeaders()
+            res.status(200).json(headers)
+        }
+        catch (err) {
+
+        }
     }
 
     async getActive(req: Request, res: Response) {
