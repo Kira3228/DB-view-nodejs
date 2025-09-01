@@ -5,6 +5,7 @@ export class ActiveFileFilters {
     limit?: number;
     filePathException: string
     processPathException: string
+    presetName?: string
 }
 
 export class ActiveFileCongitDto {

@@ -8,6 +8,7 @@ import { paginate } from "../utils/pagination";
 
 import tableConfig from './config.json'
 import { getPreset } from "../utils/get-presets";
+import { getExceptions } from "../utils/get-exceptions";
 
 export class ActiveFilesService {
     private activeFileRepo = getRepository(MonitoredFile)
@@ -38,8 +39,8 @@ export class ActiveFilesService {
             qb.andWhere('file.inode = :inode', { inode: filters.inode });
         }
 
-        const excludeFilePaths = parsePathExceptions(filters.filePathException);
-        applyNotLikeList(qb, 'file', `filePath`, excludeFilePaths, `both`)
+        // const excludeFilePaths = parsePathExceptions(filters.filePathException);
+        // applyNotLikeList(qb, 'file', `filePath`, excludeFilePaths, `both`)
     }
 
     private buildFilesBaseQuery(
@@ -64,6 +65,14 @@ export class ActiveFilesService {
         if (statusesOverride && statusesOverride.length > 0) {
             qb.andWhere('file.status IN (:...statuses)', { statuses: statusesOverride });
         }
+        const preset = getPreset(this.config, filters.presetName)
+
+        const excludeFilePaths = getExceptions(preset, `filePath`)
+        applyNotLikeList(qb, `file`, `filePath`, excludeFilePaths as string[], `both`)
+
+        const excludeInode = getExceptions(preset, 'inode')
+        applyNotLikeList(qb, `inode`, `inode`, excludeInode as string[], `both`)
+
 
         this.applyCommonFilters(qb, filters);
 
