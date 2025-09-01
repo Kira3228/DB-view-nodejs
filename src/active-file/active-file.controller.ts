@@ -22,6 +22,18 @@ export class ActiveFileController {
         this.router.get('/graph', validate(graphQueryRules), asyncHandler(this.graph.bind(this)));
         this.router.get('/headers', validate(listActiveFilesQueryRules), asyncHandler(this.getHeaders.bind(this)));
         this.router.get('/presets', validate(graphQueryRules), asyncHandler(this.getPresetNames.bind(this)));
+        this.router.get(`/filters`, this.getFilters.bind(this))
+    }
+
+    async getFilters(req: Request, res: Response) {
+        try {
+            const presetName: string = req.query.presetName as string
+            const filters = await this.activeFileService.getFilters(presetName)
+            res.status(200).json(filters)
+        }
+        catch (err) {
+
+        }
     }
 
     async getHeaders(req: Request, res: Response) {
@@ -67,9 +79,10 @@ export class ActiveFileController {
 
     async graph(req: Request, res: Response) {
         const body = req.query
+        const preset = body.preset
         const filePath = body.filePath
         const inode = body.inode
-        const result = await this.activeFileService.relationGraph(filePath as string, Number(inode), body.filePathExceptions as string);
+        const result = await this.activeFileService.relationGraph(filePath as string, Number(inode), body.filePathExceptions as string, preset as string);
         return res.status(200).json(result)
     }
 

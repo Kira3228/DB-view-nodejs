@@ -7,7 +7,7 @@ import { NotFoundError } from "../errors/http-errors";
 import { log } from "console";
 import tableConfig from './config.json'
 import { getPreset } from "../utils/get-presets";
-import { getExceptions } from "../utils/get-exceptions";
+import { getFilters } from "../utils/get-exceptions";
 
 
 export class SystemLogService {
@@ -70,10 +70,10 @@ export class SystemLogService {
 
         const preset = getPreset(this.config, filters.presetName)
 
-        const filePathException = getExceptions(preset, `filePath`)
+        const filePathException = getFilters(preset, `filePath`, `exceptions`)
         applyNotLikeList(queryBuilder, `file`, `filePath`, filePathException as string[], 'both', true)
 
-        const processPathException = getExceptions(preset, `relatedProcessId`)
+        const processPathException = getFilters(preset, `relatedProcessId`, `exceptions`)
         log(processPathException)
         applyNotLikeList(queryBuilder, `process`, `executablePath`, processPathException as string[], 'both', true)
 

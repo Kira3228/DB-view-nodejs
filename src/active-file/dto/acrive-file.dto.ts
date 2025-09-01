@@ -3,9 +3,10 @@ export class ActiveFileFilters {
     filePath?: string;
     page?: number;
     limit?: number;
+    presetName?: string
+
     filePathException: string
     processPathException: string
-    presetName?: string
 }
 
 export class ActiveFileCongitDto {

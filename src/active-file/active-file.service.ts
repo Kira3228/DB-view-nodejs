@@ -7,8 +7,8 @@ import { applyNotLikeList, parsePathExceptions } from "../utils/query-utils";
 import { paginate } from "../utils/pagination";
 
 import tableConfig from './config.json'
-import { getPreset } from "../utils/get-presets";
-import { getExceptions } from "../utils/get-exceptions";
+import { getPreset, TPreset } from "../utils/get-presets";
+import { getFilters } from "../utils/get-exceptions";
 
 export class ActiveFilesService {
     private activeFileRepo = getRepository(MonitoredFile)
@@ -27,6 +27,14 @@ export class ActiveFilesService {
         return presetsName
     }
 
+    async getFilters(presetName: string) {
+        const preset = getPreset(this.config, presetName)
+        const filters = preset.default_filters
+        return filters
+    }
+
+
+
     private applyCommonFilters(
         qb: ReturnType<typeof this.activeFileRepo.createQueryBuilder>,
         filters: Partial<ActiveFileFilters>
@@ -38,9 +46,6 @@ export class ActiveFilesService {
         if (filters.inode) {
             qb.andWhere('file.inode = :inode', { inode: filters.inode });
         }
-
-        // const excludeFilePaths = parsePathExceptions(filters.filePathException);
-        // applyNotLikeList(qb, 'file', `filePath`, excludeFilePaths, `both`)
     }
 
     private buildFilesBaseQuery(
@@ -67,14 +72,16 @@ export class ActiveFilesService {
         }
         const preset = getPreset(this.config, filters.presetName)
 
-        const excludeFilePaths = getExceptions(preset, `filePath`)
+        const excludeFilePaths = getFilters(preset, `filePath`, `exceptions`)
         applyNotLikeList(qb, `file`, `filePath`, excludeFilePaths as string[], `both`)
 
-        const excludeInode = getExceptions(preset, 'inode')
+        const excludeInode = getFilters(preset, 'inode', `exceptions`)
         applyNotLikeList(qb, `inode`, `inode`, excludeInode as string[], `both`)
 
+        const configFilePathFilter = getFilters(preset, `filePath`, `default_filters`)
+        const configFileInodeFilter = getFilters(preset, `inode`, `default_filters`)
 
-        this.applyCommonFilters(qb, filters);
+        this.applyCommonFilters(qb, {});
 
         return qb;
     }
@@ -150,7 +157,7 @@ export class ActiveFilesService {
         return groupedRelations;
     }
 
-    async relationGraph(filePath?: string, inode?: number, filePathException?: string) {
+    async relationGraph(filePath?: string, inode?: number, filePathException?: string, presetName?: string) {
         const qb = this.relationRepo
             .createQueryBuilder('rel')
             .leftJoinAndSelect('rel.parentFile', 'parent')
@@ -163,9 +170,12 @@ export class ActiveFilesService {
             qb.andWhere('parent.inode = :inode', { inode })
         }
 
-        const excl = parsePathExceptions(filePathException)
-        applyNotLikeList(qb, 'parent', 'filePath', excl, 'both')
-        applyNotLikeList(qb, 'child', 'filePath', excl, 'both')
+        const preset = getPreset(this.config, presetName)
+
+        const excludeFilePaths = getFilters(preset, `filePath`, `exceptions`)
+
+        applyNotLikeList(qb, 'parent', 'filePath', excludeFilePaths as string[], 'both')
+        applyNotLikeList(qb, 'child', 'filePath', excludeFilePaths as string[], 'both')
 
         const relations = await qb.getMany()
 
