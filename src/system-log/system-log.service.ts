@@ -6,32 +6,23 @@ import { paginate } from "../utils/pagination";
 import { NotFoundError } from "../errors/http-errors";
 import { log } from "console";
 import tableConfig from './config.json'
+import { getPreset } from "../utils/get-presets";
 
-interface TablePreset {
-    name: string
-    event_log_table_headers: THeader[]
-
-}
-
-interface THeader {
-    text: string
-    value: string
-    align: string
-    sortable: boolean
-    isVisible: boolean
-    width: number
-}
 
 export class SystemLogService {
     private systemLogRepo = getRepository(SystemEvent);
     private config = tableConfig
 
-    private getPreset(presetName?: string) {
-        const preset = presetName || this.config.default_preset
-        return this.config.presets[preset]
-    }
     async getHeaders(presetName?: string) {
-        return this.getPreset(presetName).event_log_table_headers
+        const preset = getPreset(this.config, presetName)
+        return preset.headers
+    }
+
+    async getPresetNames() {
+        const presetsName = this.config.presets.map(name => {
+            return name.presetName
+        })
+        return presetsName
     }
 
     async getSystemEvents() {

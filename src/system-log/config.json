@@ -1,10 +1,11 @@
 {
   "table_id": "event_log",
   "default_preset": "standart",
-  "presets": {
-    "standart": {
+  "presets": [
+    {
+      "presetName": "standart",
       "name": "Стандартный вид",
-      "event_log_table_headers": [
+      "headers": [
         {
           "text": "Время",
           "value": "event.timestamp",
@@ -118,20 +119,66 @@
           "width": 80
         }
       ],
-      "exceptions": {
-        "file_path": [],
-        "fileSystemId": []
-      },
+      "exceptions": [
+        {
+          "field": "file_path",
+          "values": []
+        },
+        {
+          "field": "fileSystemId",
+          "values": []
+        }
+      ],
       "default_filters": {}
     },
-    "small": {
+    {
+      "presetName": "small",
       "name": "Маленький",
-      "event_log_table_headers": [],
-      "exceptions": {
-        "file_path": [],
-        "fileSystemId": []
-      },
+      "headers": [
+        {
+          "text": "Время",
+          "value": "event.timestamp",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 120
+        },
+        {
+          "text": "Тип",
+          "value": "event.eventType",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 100
+        },
+        {
+          "text": "Источник",
+          "value": "event.source",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 100
+        },
+        {
+          "text": "Путь к файлу",
+          "value": "file.filePath",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 200
+        }
+      ],
+      "exceptions": [
+        {
+          "field": "file_path",
+          "values": []
+        },
+        {
+          "field": "fileSystemId",
+          "values": []
+        }
+      ],
       "default_filters": {}
     }
-  }
+  ]
 }

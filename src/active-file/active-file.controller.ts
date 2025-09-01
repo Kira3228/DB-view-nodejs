@@ -17,10 +17,10 @@ export class ActiveFileController {
 
     initializeRoutes() {
         this.router.get('/active', validate(listActiveFilesQueryRules), asyncHandler(this.getActive.bind(this)));
-        this.router.get('/headers', validate(listActiveFilesQueryRules), asyncHandler(this.getHeaders.bind(this)));
         this.router.get('/archive', validate(listActiveFilesQueryRules), asyncHandler(this.getArchive.bind(this)));
         this.router.patch('/:id/status', validate(updateStatusRules), asyncHandler(this.updateStatus.bind(this)));
         this.router.get('/graph', validate(graphQueryRules), asyncHandler(this.graph.bind(this)));
+        this.router.get('/headers', validate(listActiveFilesQueryRules), asyncHandler(this.getHeaders.bind(this)));
         this.router.get('/presets', validate(graphQueryRules), asyncHandler(this.getPresetNames.bind(this)));
     }
 

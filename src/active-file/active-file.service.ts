@@ -26,9 +26,6 @@ export class ActiveFilesService {
         return presetsName
     }
 
-
-
-
     private applyCommonFilters(
         qb: ReturnType<typeof this.activeFileRepo.createQueryBuilder>,
         filters: Partial<ActiveFileFilters>

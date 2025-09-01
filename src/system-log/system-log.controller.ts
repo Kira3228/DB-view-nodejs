@@ -5,7 +5,6 @@ import { log } from "console";
 import { validate } from "../middleware/validate";
 import { filteredSystemLogQueryRules, selectedLogsQueryRules } from "./system-log.validator";
 import { asyncHandler } from "../utils/async-handler";
-import { ThickUnderline } from "docx";
 
 const express = require('express');
 
@@ -20,23 +19,37 @@ export class SystemLogController {
 
     initializeRoutes() {
         this.router.get('/', this.getSystemLog.bind(this));
-        this.router.get('/headers', validate(filteredSystemLogQueryRules), asyncHandler(this.getSystemLogHeaders.bind(this)));
+        this.router.get('/headers', validate(filteredSystemLogQueryRules), asyncHandler(this.getHeaders.bind(this)));
         this.router.get('/search', validate(filteredSystemLogQueryRules), asyncHandler(this.getFilteredSystemLog.bind(this)));
         this.router.get('/export.csv', validate(selectedLogsQueryRules), asyncHandler(this.getSelectedLogs.bind(this)));
         this.router.get('/export/all', asyncHandler(this.exportCSV.bind(this)));
         this.router.get('/options', asyncHandler(this.getAllOptions.bind(this)));
+        this.router.get('/presets', asyncHandler(this.getPresetNames.bind(this)));
 
     }
 
-    async getSystemLogHeaders(req: Request, res: Response) {
+    async getHeaders(req: Request, res: Response) {
         try {
-            const result = await this.systemLogService.getHeaders();
+            const presetName = req.query.preset as string
+
+            const result = await this.systemLogService.getHeaders(presetName);
             return res.status(201).json(result);
         }
         catch (err) {
 
         }
     }
+
+    async getPresetNames(req: Request, res: Response) {
+        try {
+            const names = await this.systemLogService.getPresetNames()
+            res.status(200).json(names)
+        }
+        catch (err) {
+
+        }
+    }
+
 
     async getSystemLog(req: Request, res: Response) {
 
