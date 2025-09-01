@@ -33,8 +33,6 @@ export class ActiveFilesService {
         return filters
     }
 
-
-
     private applyCommonFilters(
         qb: ReturnType<typeof this.activeFileRepo.createQueryBuilder>,
         filters: Partial<ActiveFileFilters>

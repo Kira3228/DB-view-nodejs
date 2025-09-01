@@ -19,6 +19,12 @@ export class SystemLogService {
         return preset.headers
     }
 
+    async getFilters(presetName: string) {
+        const preset = getPreset(this.config, presetName)
+        const filters = preset.default_filters
+        return filters
+    }
+
     async getPresetNames() {
         const presetsName = this.config.presets.map(name => {
             return name.presetName

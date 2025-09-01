@@ -129,7 +129,16 @@
           "values": []
         }
       ],
-      "default_filters": {}
+      "default_filters": {
+        "sortBy": [
+          "file.fileSystemId",
+          "user.userName"
+        ],
+        "sertDesc": [
+          false,
+          true
+        ]
+      }
     },
     {
       "presetName": "small",
