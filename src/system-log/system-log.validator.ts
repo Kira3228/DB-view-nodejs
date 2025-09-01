@@ -45,7 +45,12 @@ export const filteredSystemLogQueryRules = [
     .optional({ checkFalsy: true })
     .isString()
     .withMessage(`filePathException должен быть строкой`)
-    .customSanitizer(v => String(v).split(`;`).map((s: string) => s.trim()).filter(Boolean)),
+    .customSanitizer(v => {
+      const res = String(v).split(`;`).map((s: string) => {
+        return s.trim()
+      }).filter(Boolean)
+      return res
+    }),
   query(`processPathException`)
     .optional({ checkFalsy: true })
     .isString()

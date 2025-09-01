@@ -67,9 +67,7 @@ export class SystemLogController {
             const filters: FiltersDto = {
                 ...req.query,
             };
-            log(filters)
             const result = await this.systemLogService.getFilteredSystemEvents(filters, filters.page, filters.limit);
-            // log(result)
             return res.status(200).json(result);
         } catch (error) {
             console.error("Error in getFilteredSystem:", error);

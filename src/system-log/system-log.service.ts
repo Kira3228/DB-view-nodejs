@@ -7,6 +7,7 @@ import { NotFoundError } from "../errors/http-errors";
 import { log } from "console";
 import tableConfig from './config.json'
 import { getPreset } from "../utils/get-presets";
+import { getExceptions } from "../utils/get-exceptions";
 
 
 export class SystemLogService {
@@ -67,11 +68,14 @@ export class SystemLogService {
             .leftJoinAndSelect('event.relatedFileId', 'file')
             .leftJoinAndSelect('event.relatedProcessId', 'process')
 
-        const excludeFilePaths = parsePathExceptions(filters.filePathException)
-        applyNotLikeList(queryBuilder, `file`, `filePath`, excludeFilePaths, 'both', true)
+        const preset = getPreset(this.config, filters.presetName)
 
-        const excludeProcessPaths = parsePathExceptions(filters.processPathException)
-        applyNotLikeList(queryBuilder, `process`, `executablePath`, excludeProcessPaths, 'both', true)
+        const filePathException = getExceptions(preset, `filePath`)
+        applyNotLikeList(queryBuilder, `file`, `filePath`, filePathException as string[], 'both', true)
+
+        const processPathException = getExceptions(preset, `relatedProcessId`)
+        log(processPathException)
+        applyNotLikeList(queryBuilder, `process`, `executablePath`, processPathException as string[], 'both', true)
 
         if (filters.eventType) {
             queryBuilder.andWhere('event.eventType = :eventType', {
