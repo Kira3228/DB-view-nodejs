@@ -1,28 +1,39 @@
-export const getPreset = (config: any, presetName: string) => {
-  config[presetName]
+import { NotFoundError } from "../errors/http-errors"
+
+export const getPreset = (config: TConfig, presetName?: string): TPreset => {
+  const targetPresetName = presetName || config.default_preset
+  const preset = config.presets.find(p => p.presetName === targetPresetName)
+
+  if (!preset) {
+    throw new NotFoundError()
+  }
+  return preset
 }
 
-
-type TConfig = {
+export type TConfig = {
   table_id: string
   default_preset: string
-  presets: []
+  presets: TPreset[]
 }
 
-type TPreset = {
+export type TPreset = {
   presetName: string
   name: string
-  headers: []
-  exceptions:
+  headers: THeader[]
+  exceptions: TExceptions[]
+  default_filters: Record<string, any>
 }
+
 type THeader = {
   text: string
   value: string
   sortable: boolean
   isVisible: boolean
   width: number
+  align?: string
 }
+
 type TExceptions = {
-  filePath: string[]
-  inode: string[] | number[]
+  field: string
+  values: Array<string | number>
 }

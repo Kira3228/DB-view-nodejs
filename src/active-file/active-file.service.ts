@@ -7,39 +7,27 @@ import { applyNotLikeList, parsePathExceptions } from "../utils/query-utils";
 import { paginate } from "../utils/pagination";
 
 import tableConfig from './config.json'
-
-interface TablePreset {
-    name: string
-    event_log_table_headers: THeader[]
-
-}
-
-interface THeader {
-    text: string
-    value: string
-    align: string
-    sortable: boolean
-    isVisible: boolean
-    width: number
-}
-
+import { getPreset } from "../utils/get-presets";
 
 export class ActiveFilesService {
     private activeFileRepo = getRepository(MonitoredFile)
     private relationRepo = getRepository(FileRelationship)
     private config = tableConfig
 
-    private getPreset(presetName?: string) {
-        const preset = presetName || this.config.default_preset
-        return this.config.presets[preset]
+    async getHeaders(presetName?: string) {
+        const preset = getPreset(this.config, presetName)
+        return preset.headers
     }
 
-    async getHeaders(presetName?: string) {
-        return this.getPreset(presetName).active_files_table_headers
-    }
     async getPresetNames() {
-        return this.config
+        const presetsName = this.config.presets.map(name => {
+            return name.presetName
+        })
+        return presetsName
     }
+
+
+
 
     private applyCommonFilters(
         qb: ReturnType<typeof this.activeFileRepo.createQueryBuilder>,

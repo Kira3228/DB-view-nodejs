@@ -26,6 +26,9 @@ export class ActiveFileController {
 
     async getHeaders(req: Request, res: Response) {
         try {
+            const presetName = req.query.preset
+            console.log(presetName);
+
             const headers = await this.activeFileService.getHeaders()
             res.status(200).json(headers)
         }

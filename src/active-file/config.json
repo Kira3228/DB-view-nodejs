@@ -64,10 +64,16 @@
           "width": 80
         }
       ],
-      "exceptions": {
-        "filePath": [],
-        "inode": []
-      },
+      "exceptions": [
+        {
+          "field": "filePath",
+          "values": []
+        },
+        {
+          "field": "inode",
+          "values": []
+        }
+      ],
       "default_filters": {}
     },
     {
@@ -97,10 +103,16 @@
           "width": 100
         }
       ],
-      "exceptions": {
-        "file_path": [],
-        "fileSystemId": []
-      },
+      "exceptions": [
+        {
+          "field": "filePath",
+          "values": []
+        },
+        {
+          "field": "fileSystemId",
+          "values": []
+        }
+      ],
       "default_filters": {}
     }
   ]
