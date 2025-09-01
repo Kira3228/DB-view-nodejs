@@ -1,6 +1,6 @@
 import { Request, Response, Router } from "express";
 import { ActiveFilesService } from "./active-file.service";
-import { ActiveFileFilters } from "./dto/acrive-file.dto";
+import { ActiveFileCongitDto, ActiveFileFilters } from "./dto/acrive-file.dto";
 import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { validate } from "../middleware/validate";
 import { graphQueryRules, listActiveFilesQueryRules, updateStatusRules } from "./active-file.validator";
@@ -26,10 +26,9 @@ export class ActiveFileController {
 
     async getHeaders(req: Request, res: Response) {
         try {
-            const presetName = req.query.preset
-            console.log(presetName);
+            const presetName = req.query.preset as string
 
-            const headers = await this.activeFileService.getHeaders()
+            const headers = await this.activeFileService.getHeaders(presetName)
             res.status(200).json(headers)
         }
         catch (err) {
