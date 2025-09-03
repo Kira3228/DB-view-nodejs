@@ -34,7 +34,7 @@ export class SystemLogController {
             const presetName = req.query.preset as string
 
             const result = await this.systemLogService.getHeaders(presetName);
-            return res.status(201).json(result);
+            return res.status(200).json(result);
         }
         catch (err) {
 
