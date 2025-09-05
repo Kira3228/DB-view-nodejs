@@ -32,6 +32,12 @@ export class SystemLogService {
         return presetsName
     }
 
+    async getExceptions(presetName: string) {
+        const preset = getPreset(this.config, presetName)
+        const exceptions = preset.exceptions
+        return exceptions
+    }
+
     async getSystemEvents() {
         try {
             const events = await this.systemLogRepo
@@ -112,7 +118,7 @@ export class SystemLogService {
             'file.fileSystemId',
             'process.id',
             'process.pid',
-            'process.executablePath'
+            'process.executablePath',
         ])
 
         return paginate(queryBuilder, page, limit, `events`)

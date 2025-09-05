@@ -8,7 +8,15 @@
       "headers": [
         {
           "text": "Время",
-          "value": "event.timestamp",
+          "value": "timestamp",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 80
+        },
+        {
+          "text": "ID",
+          "value": "id",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -16,7 +24,7 @@
         },
         {
           "text": "Данные события",
-          "value": "event.eventData",
+          "value": "eventData",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -24,7 +32,7 @@
         },
         {
           "text": "Тип",
-          "value": "event.eventType",
+          "value": "eventType",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -32,7 +40,7 @@
         },
         {
           "text": "Источник",
-          "value": "event.source",
+          "value": "source",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -40,15 +48,15 @@
         },
         {
           "text": "ID файла",
-          "value": "file.id",
+          "value": "relatedFileId.id",
           "align": "start",
           "sortable": true,
           "isVisible": true,
-          "width": 80
+          "width": 10
         },
         {
           "text": "Путь к файлу",
-          "value": "file.filePath",
+          "value": "relatedFileId.filePath",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -56,7 +64,7 @@
         },
         {
           "text": "Имя файла",
-          "value": "file.fileName",
+          "value": "relatedFileId.fileName",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -64,7 +72,7 @@
         },
         {
           "text": "Статус файла",
-          "value": "file.status",
+          "value": "relatedFileId.status",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -72,7 +80,7 @@
         },
         {
           "text": "ID файловой системы",
-          "value": "file.fileSystemId",
+          "value": "relatedFileId.fileSystemId",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -80,7 +88,7 @@
         },
         {
           "text": "ID процесса",
-          "value": "process.id",
+          "value": "relatedProcessId.id",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -88,23 +96,7 @@
         },
         {
           "text": "PID",
-          "value": "process.pid",
-          "align": "start",
-          "sortable": true,
-          "isVisible": true,
-          "width": 80
-        },
-        {
-          "text": "ID пользователя",
-          "value": "user.id",
-          "align": "start",
-          "sortable": true,
-          "isVisible": true,
-          "width": 80
-        },
-        {
-          "text": "Имя пользователя",
-          "value": "user.userName",
+          "value": "relatedProcessId.pid",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -146,7 +138,7 @@
       "headers": [
         {
           "text": "Время",
-          "value": "event.timestamp",
+          "value": "timestamp",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -154,7 +146,7 @@
         },
         {
           "text": "Тип",
-          "value": "event.eventType",
+          "value": "eventType",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -162,7 +154,7 @@
         },
         {
           "text": "Источник",
-          "value": "event.source",
+          "value": "source",
           "align": "start",
           "sortable": true,
           "isVisible": true,
@@ -170,7 +162,48 @@
         },
         {
           "text": "Путь к файлу",
-          "value": "file.filePath",
+          "value": "filePath",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 200
+        }
+      ],
+      "exceptions": [
+        {
+          "field": "file_path",
+          "values": []
+        },
+        {
+          "field": "fileSystemId",
+          "values": []
+        }
+      ],
+      "default_filters": {}
+    },
+    {
+      "presetName": "test",
+      "name": "Маленький",
+      "headers": [
+        {
+          "text": "Тип",
+          "value": "eventType",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 100
+        },
+        {
+          "text": "Источник",
+          "value": "source",
+          "align": "start",
+          "sortable": true,
+          "isVisible": true,
+          "width": 100
+        },
+        {
+          "text": "Путь к файлу",
+          "value": "filePath",
           "align": "start",
           "sortable": true,
           "isVisible": true,

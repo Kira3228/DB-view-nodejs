@@ -5,9 +5,8 @@ import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { FileRelationship } from "../entities/file_relationships.entity";
 import { applyNotLikeList, parsePathExceptions } from "../utils/query-utils";
 import { paginate } from "../utils/pagination";
-
 import tableConfig from './config.json'
-import { getPreset, TPreset } from "../utils/get-presets";
+import { getPreset } from "../utils/get-presets";
 import { getFilters } from "../utils/get-exceptions";
 
 export class ActiveFilesService {

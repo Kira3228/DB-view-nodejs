@@ -26,13 +26,14 @@ export class SystemLogController {
         this.router.get('/options', asyncHandler(this.getAllOptions.bind(this)));
         this.router.get('/presets', asyncHandler(this.getPresetNames.bind(this)));
         this.router.get(`/filters`, this.getFilters.bind(this))
+        this.router.get(`/exceptions`, this.getExceptions.bind(this))
 
     }
 
     async getHeaders(req: Request, res: Response) {
         try {
-            const presetName = req.query.preset as string
-
+            const presetName = req.query.presetName as string
+            log(presetName)
             const result = await this.systemLogService.getHeaders(presetName);
             return res.status(200).json(result);
         }
@@ -57,6 +58,17 @@ export class SystemLogController {
             res.status(200).json(names)
         }
         catch (err) {
+
+        }
+    }
+
+    async getExceptions(req: Request, res: Response) {
+        try {
+            const presetName = req.query.presetName as string
+            const exceptions = await this.systemLogService.getExceptions(presetName)
+            res.status(200).json(exceptions)
+        }
+        catch {
 
         }
     }
