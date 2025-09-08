@@ -4,7 +4,7 @@ import { ActiveFileCongitDto, ActiveFileFilters } from "./dto/acrive-file.dto";
 import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { validate } from "../middleware/validate";
 import { graphQueryRules, listActiveFilesQueryRules, updateStatusRules } from "./active-file.validator";
-import { asyncHandler } from "../utils/async-handler";
+import { asyncHandler } from "../shared/utils/async-handler";
 import { log } from "console";
 
 export class ActiveFileController {

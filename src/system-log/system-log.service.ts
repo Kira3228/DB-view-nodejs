@@ -1,13 +1,13 @@
 import { getConnection, getRepository, In, SelectQueryBuilder } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { FiltersDto } from "./dto/filters.dto";
-import { applyNotLikeList, parsePathExceptions } from "../utils/query-utils";
-import { paginate } from "../utils/pagination";
+import { applyNotLikeList, parsePathExceptions } from "../shared/utils/query-utils";
+import { paginate } from "../shared/utils/pagination";
 import { NotFoundError } from "../errors/http-errors";
 import { log } from "console";
 import tableConfig from './config.json'
-import { getPreset } from "../utils/get-presets";
-import { getFilters } from "../utils/get-exceptions";
+import { getPreset } from "../shared/utils/get-presets";
+import { getFilters } from "../shared/utils/get-exceptions";
 
 
 export class SystemLogService {

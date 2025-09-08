@@ -4,7 +4,7 @@ import { FiltersDto } from "./dto/filters.dto";
 import { log } from "console";
 import { validate } from "../middleware/validate";
 import { filteredSystemLogQueryRules, selectedLogsQueryRules } from "./system-log.validator";
-import { asyncHandler } from "../utils/async-handler";
+import { asyncHandler } from "../shared/utils/async-handler";
 
 const express = require('express');
 

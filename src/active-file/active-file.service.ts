@@ -3,11 +3,11 @@ import { MonitoredFile } from "../entities/monitored_file.entity";
 import { ActiveFileFilters } from "./dto/acrive-file.dto";
 import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { FileRelationship } from "../entities/file_relationships.entity";
-import { applyNotLikeList, parsePathExceptions } from "../utils/query-utils";
-import { paginate } from "../utils/pagination";
+import { applyNotLikeList, parsePathExceptions } from "../shared/utils/query-utils";
+import { paginate } from "../shared/utils/pagination";
 import tableConfig from './config.json'
-import { getPreset } from "../utils/get-presets";
-import { getFilters } from "../utils/get-exceptions";
+import { getPreset } from "../shared/utils/get-presets";
+import { getFilters } from "../shared/utils/get-exceptions";
 import { log } from "console";
 
 export class ActiveFilesService {
@@ -83,7 +83,7 @@ export class ActiveFilesService {
 
 
 
-        
+
         const excludeInode = getFilters(preset, 'inode', `exceptions`)
         log('excludeInode', excludeInode)
         applyNotLikeList(qb, `inode`, `inode`, excludeInode as string[], `both`)
