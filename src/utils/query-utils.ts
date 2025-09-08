@@ -1,3 +1,4 @@
+import { log } from "console";
 import { SelectQueryBuilder } from "typeorm"
 
 export const parsePathExceptions = (raw?: string): string[] => {
@@ -15,13 +16,32 @@ export const applyNotLikeList = <T>(
   wildcard: `prefix` | `suffix` | `both` | `none` = `both`,
   allowNull = false
 ) => {
+  let normalizedValues: string[] = [];
 
-  if (!values || values.length === 0) return qb
+  log(`values`, values)
+  if (!values) { return qb }
+
+  if (Array.isArray(values)) {
+    normalizedValues = values.filter(Boolean)
+  }
+  else if (typeof values === `string`) {
+    normalizedValues = (values as string).split(/[;,]/).map(v => v.trim()).filter(Boolean);
+  } else {
+    return qb
+  }
+
+  if (normalizedValues.length === 0) {
+    return qb
+  }
 
   const params: Record<string, any> = {}
   const conds: string[] = []
 
-  values.forEach((val, idx) => {
+  normalizedValues.forEach((val, idx) => {
+    if (!val) {
+      return
+    }
+
     const paramName = `${field}_exclude_${idx}`
     let pattern = val
 
@@ -32,6 +52,10 @@ export const applyNotLikeList = <T>(
     params[paramName] = pattern
     conds.push(`${alias}.${field} NOT LIKE :${paramName}`)
   })
+
+  if (conds.length === 0) {
+    return qb
+  }
 
   if (allowNull) {
     qb.andWhere(`(${alias}.${field} IS NULL OR (${alias}.${field} IS NOT NULL AND ${conds.join(` AND `)}))`, params)

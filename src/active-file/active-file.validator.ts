@@ -2,9 +2,9 @@ import { body, param, query } from "express-validator";
 
 export const listActiveFilesQueryRules = [
   query(`page`)
-    .optional({ checkFalsy: true })
+    .optional({ checkFalsy: false })
     .isInt({ min: 1 })
-    .withMessage(`page должен быть больше 1`)
+    .withMessage(`page должен быть больше 0`)
     .toInt(),
   query(`limit`)
     .optional({ checkFalsy: true })
