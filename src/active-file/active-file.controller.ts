@@ -5,6 +5,7 @@ import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { validate } from "../middleware/validate";
 import { graphQueryRules, listActiveFilesQueryRules, updateStatusRules } from "./active-file.validator";
 import { asyncHandler } from "../utils/async-handler";
+import { log } from "console";
 
 export class ActiveFileController {
     constructor() {
@@ -28,6 +29,7 @@ export class ActiveFileController {
     async getFilters(req: Request, res: Response) {
         try {
             const presetName: string = req.query.presetName as string
+
             const filters = await this.activeFileService.getFilters(presetName)
             res.status(200).json(filters)
         }
@@ -38,8 +40,8 @@ export class ActiveFileController {
 
     async getHeaders(req: Request, res: Response) {
         try {
-            const presetName = req.query.preset as string
-
+            const presetName = req.query.presetName as string
+            log(presetName)
             const headers = await this.activeFileService.getHeaders(presetName)
             res.status(200).json(headers)
         }
@@ -59,9 +61,16 @@ export class ActiveFileController {
     }
 
     async getActive(req: Request, res: Response) {
-        const filters: Partial<ActiveFileFilters> = { ...req.query }
-        const result = await this.activeFileService.getActiveFiles(filters, filters.page, filters.limit)
-        return res.status(200).json(result)
+        try {
+            const filters: Partial<ActiveFileFilters> = { ...req.query }
+            const result = await this.activeFileService.getActiveFiles(filters, filters.page, filters.limit)
+            return res.status(200).json(result)
+        }
+        catch (err) {
+            console.error(err);
+
+        }
+
     }
 
     async getArchive(req: Request, res: Response) {
