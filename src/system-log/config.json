@@ -113,8 +113,10 @@
       ],
       "exceptions": [
         {
-          "field": "filePath",
-          "values": []
+          "field": "",
+          "values": [
+            "data"
+          ]
         },
         {
           "field": "relatedProcessId",

@@ -8,6 +8,7 @@ import { paginate } from "../utils/pagination";
 import tableConfig from './config.json'
 import { getPreset } from "../utils/get-presets";
 import { getFilters } from "../utils/get-exceptions";
+import { log } from "console";
 
 export class ActiveFilesService {
     private activeFileRepo = getRepository(MonitoredFile)
@@ -30,6 +31,12 @@ export class ActiveFilesService {
         const preset = getPreset(this.config, presetName)
         const filters = preset.default_filters
         return filters
+    }
+
+    async getExceptions(presetName: string) {
+        const preset = getPreset(this.config, presetName)
+        const exceptions = preset.exceptions
+        return exceptions
     }
 
     private applyCommonFilters(
@@ -70,9 +77,15 @@ export class ActiveFilesService {
         const preset = getPreset(this.config, filters.presetName)
 
         const excludeFilePaths = getFilters(preset, `filePath`, `exceptions`)
-        applyNotLikeList(qb, `file`, `filePath`, excludeFilePaths as string[], `both`)
+        log(`excludeFilePaths`, excludeFilePaths)
+        const test = applyNotLikeList(qb, `file`, `filePath`, excludeFilePaths as string[], `both`)
+        log(`test`, test)
 
+
+
+        
         const excludeInode = getFilters(preset, 'inode', `exceptions`)
+        log('excludeInode', excludeInode)
         applyNotLikeList(qb, `inode`, `inode`, excludeInode as string[], `both`)
 
         const configFilePathFilter = getFilters(preset, `filePath`, `default_filters`)
@@ -211,7 +224,6 @@ export class ActiveFilesService {
             roots,
         }
     }
-
 }
 
 type Edge = {
