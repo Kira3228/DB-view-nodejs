@@ -86,7 +86,7 @@ export class ActiveFilesService {
         }
     }
 
-    async relationGrap(
+    async relationGraph(
         filePath?: string,
         inode?: number,
         filePathException?: string,
