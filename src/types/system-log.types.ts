@@ -1,4 +1,4 @@
-import { DateRange, FilterBase } from "../shared/interfaces/common.types";
+import { DateRange, FilterBase } from "../shared/interfaces/common.interface";
 
 export interface SystemLogFilters extends FilterBase, DateRange {
   eventType?: string

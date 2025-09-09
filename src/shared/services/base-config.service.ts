@@ -1,4 +1,4 @@
-import { PresetConfig } from "../interfaces/common.types";
+import { PresetConfig } from "../interfaces/common.interface";
 
 export abstract class BaseConfigService {
   constructor(protected config: any) { }

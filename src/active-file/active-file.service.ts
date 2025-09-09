@@ -1,42 +1,47 @@
-import { getRepository } from "typeorm";
+import { getRepository, Repository } from "typeorm";
 import { MonitoredFile } from "../entities/monitored_file.entity";
 import { ActiveFileFilters } from "./dto/acrive-file.dto";
 import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { FileRelationship } from "../entities/file_relationships.entity";
 import { applyNotLikeList, parsePathExceptions } from "../shared/utils/query-utils";
 import { paginate } from "../shared/utils/pagination";
-import tableConfig from './config.json'
 import { getPreset } from "../shared/utils/get-presets";
 import { getFilters } from "../shared/utils/get-exceptions";
 import { log } from "console";
+import { ActiveFileConfigService } from "./active-file-config.service";
 
 export class ActiveFilesService {
-    private activeFileRepo = getRepository(MonitoredFile)
-    private relationRepo = getRepository(FileRelationship)
-    private config = tableConfig
+    private readonly activeFileRepo: Repository<MonitoredFile>
+    private readonly relationRepo: Repository<FileRelationship>
+    private readonly configService: ActiveFileConfigService
 
-    async getHeaders(presetName?: string) {
-        const preset = getPreset(this.config, presetName)
-        return preset.headers
+    constructor() {
+        this.activeFileRepo = getRepository(MonitoredFile)
+        this.relationRepo = getRepository(FileRelationship)
+        this.configService = new ActiveFileConfigService()
     }
 
-    async getPresetNames() {
-        const presetsName = this.config.presets.map(name => {
-            return name.presetName
-        })
-        return presetsName
+    async getHeaders(presetName?: string): Promise<string[]> {
+        return this.configService.getHeaders(presetName)
     }
 
-    async getFilters(presetName: string) {
-        const preset = getPreset(this.config, presetName)
-        const filters = preset.default_filters
-        return filters
+    async getPresetNames(): Promise<string[]> {
+        return this.configService.getPresetNames()
     }
 
-    async getExceptions(presetName: string) {
-        const preset = getPreset(this.config, presetName)
-        const exceptions = preset.exceptions
-        return exceptions
+    async getFilters(presetName: string): Promise<Record<string, any>> {
+        return this.configService.getFilters(presetName)
+    }
+
+    async getExceptions(presetName: string): Promise<Record<string, string[]>> {
+        try {
+            const preset = this.configService.getPreset(presetName)
+            return preset?.exceptions || {}
+        }
+        catch (error) {
+            console.error(error);
+            return {}
+        }
     }
 
     private applyCommonFilters(

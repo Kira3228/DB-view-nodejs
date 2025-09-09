@@ -1,4 +1,4 @@
-import { FilterBase } from "../shared/interfaces/common.types"
+import { FilterBase } from "../shared/interfaces/common.interface"
 
 export interface ActiveFileFilters extends FilterBase {
   filePath?: string

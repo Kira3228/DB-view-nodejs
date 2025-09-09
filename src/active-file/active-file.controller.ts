@@ -1,6 +1,6 @@
 import { Request, Response, Router } from "express";
 import { ActiveFilesService } from "./active-file.service";
-import { ActiveFileCongitDto, ActiveFileFilters } from "./dto/acrive-file.dto";
+import { ActiveFileFilters } from "./dto/acrive-file.dto";
 import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { validate } from "../middleware/validate";
 import { graphQueryRules, listActiveFilesQueryRules, updateStatusRules } from "./active-file.validator";

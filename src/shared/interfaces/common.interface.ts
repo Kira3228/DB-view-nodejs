@@ -17,7 +17,7 @@ export interface PresetConfig {
   exceptions: Record<string, string[]>
 }
 
-export interface FilterBase {
+export interface BaseFilters {
   presetName?: string
 }
 
