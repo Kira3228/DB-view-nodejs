@@ -5,6 +5,8 @@ export interface ActiveFileFilters extends BaseFilters {
   inode?: number
   filePathException?: string[]
   processPathException?: string[]
+  page?: number
+  limit?: number
 }
 
 export interface RelationshipGraph {

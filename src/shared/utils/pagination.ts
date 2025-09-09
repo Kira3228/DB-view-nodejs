@@ -1,11 +1,12 @@
 import { SelectQueryBuilder } from "typeorm";
 import { NotFoundError } from "../../errors/http-errors";
+import { PaginatedResult } from "../interfaces/common.interface";
 
 export const paginate = async <T>(
   qb: SelectQueryBuilder<T>,
   page: number = 1,
   limit: number = 30,
-  alias: string = `items`) => {
+  alias: string = `items`): Promise<PaginatedResult<T>> => {
   try {
     const skipAmount = (page - 1) * limit
     qb.skip(skipAmount).take(limit)

@@ -4,10 +4,11 @@ export interface PaginationParams {
 }
 
 export interface PaginatedResult<T> {
-  items: T[]
+  items: T[];
+  page: number
   totalPages: number;
-  currentPage: number
-  totalItems: number
+  totalCount: number;
+  limit: number
 }
 
 export interface PresetConfig {
