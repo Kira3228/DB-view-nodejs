@@ -1,12 +1,10 @@
-import { BaseFilters } from "../../shared/interfaces/common.interface";
+import { BaseFilters, PaginationParams } from "../../shared/interfaces/common.interface";
 
-export interface ActiveFileFilters extends BaseFilters {
+export interface ActiveFileFilters extends BaseFilters, PaginationParams {
   filePath?: string
   inode?: number
   filePathException?: string[]
   processPathException?: string[]
-  page?: number
-  limit?: number
 }
 
 export interface RelationshipGraph {

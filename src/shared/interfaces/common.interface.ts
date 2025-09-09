@@ -4,7 +4,7 @@ export interface PaginationParams {
 }
 
 export interface PaginatedResult<T> {
-  items: T[];
+  [key: string]: T[] | number;
   page: number
   totalPages: number;
   totalCount: number;
