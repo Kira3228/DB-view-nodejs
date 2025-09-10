@@ -246,10 +246,9 @@ export class SystemLogService {
         }
 
         const headers = Object.keys(data[0]).join(`,`)
-
         const rows = data
             .map(row => {
-                Object.values(row)
+                return Object.values(row)
                     .map(val => {
                         const stringVal = typeof val === `object` ? JSON.stringify(val) : String(val)
                         return `"${stringVal.replace(/"/g, '""')}"`;

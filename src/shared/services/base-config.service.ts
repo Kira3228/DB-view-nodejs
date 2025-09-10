@@ -14,7 +14,7 @@ export abstract class BaseConfigService {
 
   getPresetNames(): string[] {
     try {
-      return this.config.preset?.map((preset: PresetConfig) => preset.presetName) || []
+      return this.config.presets?.map((preset: PresetConfig) => preset.presetName) || []
     }
     catch (error) {
       console.error(error);

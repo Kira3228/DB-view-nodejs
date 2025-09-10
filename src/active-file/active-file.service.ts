@@ -110,7 +110,7 @@ export class ActiveFilesService {
     }
 
     private createBaseQuery(): SelectQueryBuilder<MonitoredFile> {
-        return this.activeFileRepo.createQueryBuilder(`filе`)
+        return this.activeFileRepo.createQueryBuilder(`file`)
             .select([
                 "file.id",
                 "file.inode",
