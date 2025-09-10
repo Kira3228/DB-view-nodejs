@@ -1,155 +1,153 @@
+// system-log/system-log.controller.ts
 import { Request, Response, Router } from "express";
-import { SystemLogService } from './system-log.service'
-import { FiltersDto } from "./dto/filters.dto";
-import { log } from "console";
+import { SystemLogService } from './system-log.service';
+import { SystemLogFilters } from "./interfaces/system-log.interface";
 import { validate } from "../middleware/validate";
 import { filteredSystemLogQueryRules, selectedLogsQueryRules } from "./system-log.validator";
-import { asyncHandler } from "../utils/async-handler";
+import { asyncHandler } from "../shared/utils/async-handler";
+import { BaseController } from "../shared/controllers/base.controller";
 
-const express = require('express');
+export class SystemLogController extends BaseController {
+    private readonly router: Router;
+    private readonly systemLogService: SystemLogService;
 
-export class SystemLogController {
     constructor() {
+        super();
+        this.router = Router();
         this.systemLogService = new SystemLogService();
-        this.router = express.Router();
         this.initializeRoutes();
     }
-    router: Router
-    systemLogService: SystemLogService
 
-    initializeRoutes() {
-        this.router.get('/', this.getSystemLog.bind(this));
-        this.router.get('/headers', validate(filteredSystemLogQueryRules), asyncHandler(this.getHeaders.bind(this)));
+    private initializeRoutes(): void {
+        this.router.get('/', asyncHandler(this.getAllSystemLogs.bind(this)));
+        this.router.get('/headers', asyncHandler(this.getHeaders.bind(this)));
         this.router.get('/search', validate(filteredSystemLogQueryRules), asyncHandler(this.getFilteredSystemLog.bind(this)));
         this.router.get('/export.csv', validate(selectedLogsQueryRules), asyncHandler(this.getSelectedLogs.bind(this)));
-        this.router.get('/export/all', asyncHandler(this.exportCSV.bind(this)));
-        this.router.get('/options', asyncHandler(this.getAllOptions.bind(this)));
+        this.router.get('/export/all', asyncHandler(this.exportAllCSV.bind(this)));
+        this.router.get('/options', asyncHandler(this.getAllEventTypes.bind(this)));
         this.router.get('/presets', asyncHandler(this.getPresetNames.bind(this)));
-        this.router.get(`/filters`, this.getFilters.bind(this))
-        this.router.get(`/exceptions`, this.getExceptions.bind(this))
-
+        this.router.get('/filters', asyncHandler(this.getFilters.bind(this)));
+        this.router.get('/exceptions', asyncHandler(this.getExceptions.bind(this)));
     }
 
-    async getHeaders(req: Request, res: Response) {
-        try {
-            const presetName = req.query.presetName as string
-            log(presetName)
-            const result = await this.systemLogService.getHeaders(presetName);
-            return res.status(200).json(result);
-        }
-        catch (err) {
-
-        }
-    }
-    async getFilters(req: Request, res: Response) {
-        try {
-            const presetName: string = req.query.presetName as string
-            const filters = await this.systemLogService.getFilters(presetName)
-            res.status(200).json(filters)
-        }
-        catch (err) {
-
-        }
+    async getHeaders(req: Request, res: Response): Promise<void> {
+        await this.handleGetHeaders(req, res, this.systemLogService);
     }
 
-    async getPresetNames(req: Request, res: Response) {
-        try {
-            const names = await this.systemLogService.getPresetNames()
-            res.status(200).json(names)
-        }
-        catch (err) {
-
-        }
+    async getFilters(req: Request, res: Response): Promise<void> {
+        await this.handleGetFilters(req, res, this.systemLogService);
     }
 
-    async getExceptions(req: Request, res: Response) {
-        try {
-            const presetName = req.query.presetName as string
-            const exceptions = await this.systemLogService.getExceptions(presetName)
-            res.status(200).json(exceptions)
-        }
-        catch {
-
-        }
+    async getPresetNames(req: Request, res: Response): Promise<void> {
+        await this.handleGetPresetNames(req, res, this.systemLogService);
     }
 
+    async getExceptions(req: Request, res: Response): Promise<void> {
+        await this.handleGetExceptions(req, res, this.systemLogService);
+    }
 
-    async getSystemLog(req: Request, res: Response) {
-
+    async getAllSystemLogs(req: Request, res: Response): Promise<void> {
         try {
             const result = await this.systemLogService.getSystemEvents();
-            return res.status(201).json(result);
+            res.status(200).json(result);
         } catch (error) {
-            console.error("Error in getSystemLog:", error);
-            return res.status(500).json({ error: error.message || "Internal server error" });
+
         }
     }
 
-    async getFilteredSystemLog(req: Request, res: Response) {
+    async getFilteredSystemLog(req: Request, res: Response): Promise<void> {
         try {
-            const filters: FiltersDto = {
-                ...req.query,
-            };
-            const result = await this.systemLogService.getFilteredSystemEvents(filters, filters.page, filters.limit);
-            return res.status(200).json(result);
+            const filters: SystemLogFilters = this.parseSystemLogFilters(req.query);
+            const result = await this.systemLogService.getFilteredSystemEvents(filters);
+            res.status(200).json(result);
         } catch (error) {
-            console.error("Error in getFilteredSystem:", error);
-            return res.status(500).json({
-                error: error.message || "Internal server error"
-            });
         }
     }
 
-    async getSelectedLogs(req: Request, res: Response) {
+    async getSelectedLogs(req: Request, res: Response): Promise<void> {
         try {
-            const ids = req.query.ids && typeof req.query.ids === 'string' ?
-                req.query.ids.split(',').map(Number) : undefined;
+            const ids = this.parseIdsParam(req.query.ids);
+            if (!ids || ids.length === 0) {
+                res.status(400).json({
+                    status: 400,
+                    code: "INVALID_PARAMS",
+                    message: "Не указаны ID событий для экспорта"
+                });
+                return;
+            }
+
             const result = await this.systemLogService.getSelectedEvents(ids);
-
-            const csv = result.headers + '\n' + result.rows;
-
-            res.setHeader('Content-Type', 'text/csv');
-            res.setHeader('Content-Disposition', 'attachment; filename="logs.csv"');
-            res.send(csv);
+            this.sendCSVResponse(res, result, 'selected_logs.csv');
         } catch (error) {
-            console.error("Error in getSelectedLogs:", error);
-            return res.status(500).json({
-                error: error.message || "Internal server error"
-            });
+
         }
     }
 
-    async exportCSV(req: Request, res: Response) {
+    async exportAllCSV(req: Request, res: Response): Promise<void> {
         try {
             const result = await this.systemLogService.getAllCSV();
-            const csv = result.headers + '\n' + result.rows;
-
-            res.setHeader('Content-Type', 'text/csv');
-            res.setHeader('Content-Disposition', 'attachment; filename="logs.csv"');
-            res.send(csv);
+            this.sendCSVResponse(res, result, 'all_logs.csv');
         } catch (error) {
-            console.error("Error in exportCSV:", error);
-            return res.status(500).json({
-                error: error.message || "Internal server error"
-            });
+
         }
     }
 
-    async getAllOptions(req: Request, res: Response) {
+    async getAllEventTypes(req: Request, res: Response): Promise<void> {
         try {
-            const result = await this.systemLogService.getAllEventTypeOption()
-            return res.json(result)
-        }
-        catch (error) {
-            console.error("Error in exportCSV:", error);
-            return res.status(500).json({
-                error: error.message || "Internal server error"
-            });
+            const result = await this.systemLogService.getAllEventTypeOption();
+            res.status(200).json(result);
+        } catch (error) {
         }
     }
 
-    getRouter() {
+    private parseSystemLogFilters(query: any): SystemLogFilters {
+        const { page, limit } = this.parsePaginationParams(query);
+
+        return {
+            page,
+            limit,
+            presetName: query.presetName as string,
+            eventType: query.eventType as string,
+            status: query.status as string,
+            filePath: query.filePath as string,
+            fileSystemId: query.fileSystemId as string,
+            startDate: query.startDate as string,
+            endDate: query.endDate as string,
+            relatedFileId: query.relatedFileId ? {
+                status: query.relatedFileId.status as string,
+                filePath: query.relatedFileId.filePath as string,
+                fileSystemId: query.relatedFileId.fileSystemId as string
+            } : undefined
+        };
+    }
+
+    private parseIdsParam(idsParam: any): number[] | undefined {
+        if (!idsParam) return undefined;
+
+        if (typeof idsParam === 'string') {
+            return idsParam.split(',')
+                .map(id => parseInt(id.trim()))
+                .filter(id => !isNaN(id) && id > 0);
+        }
+
+        if (Array.isArray(idsParam)) {
+            return idsParam
+                .map(id => parseInt(String(id).trim()))
+                .filter(id => !isNaN(id) && id > 0);
+        }
+
+        return undefined;
+    }
+
+    private sendCSVResponse(res: Response, csvData: any, filename: string): void {
+        const csv = csvData.headers + '\n' + csvData.rows;
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(csv);
+    }
+
+    getRouter(): Router {
         return this.router;
     }
 }
-

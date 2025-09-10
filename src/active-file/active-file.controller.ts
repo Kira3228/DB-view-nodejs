@@ -1,102 +1,137 @@
 import { Request, Response, Router } from "express";
 import { ActiveFilesService } from "./active-file.service";
-import { ActiveFileCongitDto, ActiveFileFilters } from "./dto/acrive-file.dto";
+import { ActiveFileFilters } from "./interfaces/active-file.interface";
 import { UpdateStatusDto } from "./dto/updateStatus.dto";
 import { validate } from "../middleware/validate";
 import { graphQueryRules, listActiveFilesQueryRules, updateStatusRules } from "./active-file.validator";
-import { asyncHandler } from "../utils/async-handler";
-import { log } from "console";
+import { asyncHandler } from "../shared/utils/async-handler";
+import { BaseController } from "../shared/controllers/base.controller";
 
-export class ActiveFileController {
+export class ActiveFileController extends BaseController {
+    private readonly router: Router;
+    private readonly activeFileService: ActiveFilesService;
+
     constructor() {
-        this.router = Router()
-        this.initializeRoutes()
-        this.activeFileService = new ActiveFilesService()
+        super();
+        this.router = Router();
+        this.activeFileService = new ActiveFilesService();
+        this.initializeRoutes();
     }
-    router: Router
-    activeFileService: ActiveFilesService
 
-    initializeRoutes() {
+    private initializeRoutes(): void {
         this.router.get('/active', validate(listActiveFilesQueryRules), asyncHandler(this.getActive.bind(this)));
         this.router.get('/archive', validate(listActiveFilesQueryRules), asyncHandler(this.getArchive.bind(this)));
         this.router.patch('/:id/status', validate(updateStatusRules), asyncHandler(this.updateStatus.bind(this)));
-        this.router.get('/graph', validate(graphQueryRules), asyncHandler(this.graph.bind(this)));
-        this.router.get('/headers', validate(listActiveFilesQueryRules), asyncHandler(this.getHeaders.bind(this)));
-        this.router.get('/presets', validate(graphQueryRules), asyncHandler(this.getPresetNames.bind(this)));
-        this.router.get(`/filters`, this.getFilters.bind(this))
+        this.router.get('/graph', validate(graphQueryRules), asyncHandler(this.getRelationshipGraph.bind(this)));
+        this.router.get('/headers', asyncHandler(this.getHeaders.bind(this)));
+        this.router.get('/presets', asyncHandler(this.getPresetNames.bind(this)));
+        this.router.get('/filters', asyncHandler(this.getFilters.bind(this)));
+        this.router.get('/exceptions', asyncHandler(this.getExceptions.bind(this)));
     }
 
-    async getFilters(req: Request, res: Response) {
+    async getHeaders(req: Request, res: Response): Promise<void> {
+        await this.handleGetHeaders(req, res, this.activeFileService);
+    }
+
+    async getFilters(req: Request, res: Response): Promise<void> {
+        await this.handleGetFilters(req, res, this.activeFileService);
+    }
+
+    async getPresetNames(req: Request, res: Response): Promise<void> {
+        await this.handleGetPresetNames(req, res, this.activeFileService);
+    }
+
+    async getExceptions(req: Request, res: Response): Promise<void> {
+        await this.handleGetExceptions(req, res, this.activeFileService);
+    }
+
+    async getActive(req: Request, res: Response): Promise<void> {
         try {
-            const presetName: string = req.query.presetName as string
-
-            const filters = await this.activeFileService.getFilters(presetName)
-            res.status(200).json(filters)
-        }
-        catch (err) {
-
+            const filters: ActiveFileFilters = this.parseActiveFileFilters(req.query);
+            const result = await this.activeFileService.getActiveFile(filters);
+            res.status(200).json(result);
+        } catch (error) {
         }
     }
 
-    async getHeaders(req: Request, res: Response) {
+    async getArchive(req: Request, res: Response): Promise<void> {
         try {
-            const presetName = req.query.presetName as string
-            log(presetName)
-            const headers = await this.activeFileService.getHeaders(presetName)
-            res.status(200).json(headers)
-        }
-        catch (err) {
-
+            const filters: ActiveFileFilters = this.parseActiveFileFilters(req.query);
+            const result = await this.activeFileService.getArchivedFile(filters);
+            res.status(200).json(result);
+        } catch (error) {
         }
     }
 
-    async getPresetNames(req: Request, res: Response) {
+    async updateStatus(req: Request, res: Response): Promise<void> {
         try {
-            const names = await this.activeFileService.getPresetNames()
-            res.status(200).json(names)
-        }
-        catch (err) {
+            console.log(`начало`);
+
+            const body: UpdateStatusDto = req.body;
+            console.log(body);
+
+            const id: number = parseInt(req.params.id);
+            console.log(id);
+
+
+            if (isNaN(id) || id <= 0) {
+                res.status(400).json({
+                    status: 400,
+                    code: "INVALID_ID",
+                    message: "Некорректный ID файла"
+                });
+                return;
+            }
+
+            const result = await this.activeFileService.updateStatus(body, id);
+            res.status(200).json(result);
+        } catch (error) {
 
         }
     }
 
-    async getActive(req: Request, res: Response) {
+    async getRelationshipGraph(req: Request, res: Response): Promise<void> {
         try {
-            const filters: Partial<ActiveFileFilters> = { ...req.query }
-            const result = await this.activeFileService.getActiveFiles(filters, filters.page, filters.limit)
-            return res.status(200).json(result)
+            const { filePath, inode, filePathExceptions, preset } = req.query;
+
+            const result = await this.activeFileService.relationGraph(
+                filePath as string,
+                inode ? parseInt(inode as string) : undefined,
+                filePathExceptions as string,
+                preset as string
+            );
+
+            res.status(200).json(result);
+        } catch (error) {
         }
-        catch (err) {
-            console.error(err);
+    }
 
+    private parseActiveFileFilters(query: any): ActiveFileFilters {
+        const { page, limit } = this.parsePaginationParams(query);
+
+        return {
+            page,
+            limit,
+            presetName: query.presetName as string,
+            filePath: query.filePath as string,
+            inode: query.inode ? parseInt(query.inode) : undefined,
+            filePathException: this.parseArrayParam(query.filePathException),
+            processPathException: this.parseArrayParam(query.processPathException)
+        };
+    }
+
+    private parseArrayParam(param: any): string[] | undefined {
+        if (!param) return undefined;
+        if (typeof param === 'string') {
+            return param.split(';').map(s => s.trim()).filter(Boolean);
         }
-
+        if (Array.isArray(param)) {
+            return param.map(s => String(s).trim()).filter(Boolean);
+        }
+        return undefined;
     }
 
-    async getArchive(req: Request, res: Response) {
-        const filters: Partial<ActiveFileFilters> = { ...req.query }
-        const result = await this.activeFileService.getArchive(filters, filters.page, filters.limit)
-        return res.status(200).json(result)
-    }
-
-    async updateStatus(req: Request, res: Response) {
-        const body: UpdateStatusDto = req.body
-        const id: number = Number(req.params.id)
-        const result = await this.activeFileService.updateStatus(body, id)
-        return res.status(200).json(result)
-    }
-
-    async graph(req: Request, res: Response) {
-        const body = req.query
-        const preset = body.preset
-        const filePath = body.filePath
-        const inode = body.inode
-        const result = await this.activeFileService.relationGraph(filePath as string, Number(inode), body.filePathExceptions as string, preset as string);
-        return res.status(200).json(result)
-    }
-
-    getRouter() {
+    getRouter(): Router {
         return this.router;
     }
-
 }

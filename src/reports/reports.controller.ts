@@ -3,7 +3,7 @@ import { ReportService } from "./reports.service";
 import { ExceptionsDto, ReportDto } from "./report.dto";
 import { validate } from "../middleware/validate";
 import { eventsReportQueryRules, exceptionsQueryRules } from "./report.volidator";
-import { asyncHandler } from "../utils/async-handler";
+import { asyncHandler } from "../shared/utils/async-handler";
 const express = require('express');
 
 export class ReportController {

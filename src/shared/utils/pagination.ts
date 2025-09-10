@@ -1,5 +1,5 @@
 import { SelectQueryBuilder } from "typeorm";
-import { NotFoundError } from "../errors/http-errors";
+import { NotFoundError } from "../../errors/http-errors";
 
 export const paginate = async <T>(
   qb: SelectQueryBuilder<T>,

@@ -1,4 +1,4 @@
-export class ActiveFileFilters {
+ class ActiveFileFilters {
     inode?: number;
     filePath?: string;
     page?: number;

@@ -1,4 +1,4 @@
-import { NotFoundError } from "../errors/http-errors"
+import { NotFoundError } from "../../errors/http-errors"
 
 export const getPreset = (config: TConfig, presetName?: string): TPreset => {
   const targetPresetName = presetName || config.default_preset
