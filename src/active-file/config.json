@@ -122,7 +122,16 @@
           "values": []
         }
       ],
-      "default_filters": {}
+      "default_filters": {
+        "sortBy": [
+          "filePath",
+          "fileSize"
+        ],
+        "sortDesc": [
+          false,
+          true
+        ]
+      }
     }
   ]
 }

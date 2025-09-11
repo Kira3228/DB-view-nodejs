@@ -4,7 +4,7 @@ import { NotFoundError } from "../errors/http-errors";
 import { SystemLogConfigService } from "./system-log-config.service";
 import { CSVExport, SystemLogFilters } from "./interfaces/system-log.interface";
 import { applyNotLikeList } from "../shared/utils/query-utils";
-import { PaginatedResult } from "../shared/interfaces/common.interface";
+import { IException, PaginatedResult } from "../shared/interfaces/common.interface";
 import { paginate } from "../shared/utils/pagination";
 
 
@@ -30,10 +30,10 @@ export class SystemLogService {
         return this.configService.getFilters(presetName)
     }
 
-    async getExceptions(presetName: string): Promise<Record<string, string[]>> {
+    async getExceptions(presetName: string): Promise<IException[]> {
         try {
             const preset = this.configService.getPreset(presetName)
-            return preset?.exceptions || {}
+            return preset?.exceptions || []
         }
         catch (errors) {
             console.error(errors);

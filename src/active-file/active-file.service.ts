@@ -5,7 +5,7 @@ import { FileRelationship } from "../entities/file_relationships.entity";
 import { applyNotLikeList } from "../shared/utils/query-utils";
 import { ActiveFileConfigService } from "./active-file-config.service";
 import { ActiveFileFilters, GraphEdge, RelationshipGraph } from "./interfaces/active-file.interface";
-import { PaginatedResult } from "../shared/interfaces/common.interface";
+import { IHeader, PaginatedResult } from "../shared/interfaces/common.interface";
 import { paginate } from "../shared/utils/pagination";
 
 export class ActiveFilesService {
@@ -19,7 +19,7 @@ export class ActiveFilesService {
         this.configService = new ActiveFileConfigService()
     }
 
-    async getHeaders(presetName?: string): Promise<string[]> {
+    async getHeaders(presetName?: string): Promise<IHeader[]> {
         return this.configService.getHeaders(presetName)
     }
 
@@ -31,7 +31,7 @@ export class ActiveFilesService {
         return this.configService.getFilters(presetName)
     }
 
-    async getExceptions(presetName: string): Promise<Record<string, string[]>> {
+    async getExceptions(presetName: string) {
         try {
             const preset = this.configService.getPreset(presetName)
             return preset?.exceptions || {}

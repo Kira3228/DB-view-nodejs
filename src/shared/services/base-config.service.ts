@@ -1,7 +1,7 @@
-import { PresetConfig } from "../interfaces/common.interface";
+import { IConfig, IHeader, PresetConfig } from "../interfaces/common.interface";
 
 export abstract class BaseConfigService {
-  constructor(protected config: any) { }
+  constructor(protected config: IConfig) { }
 
   getPreset(presetName?: string): PresetConfig | null {
     if (!presetName) {
@@ -22,7 +22,7 @@ export abstract class BaseConfigService {
     }
   }
 
-  getHeaders(presetName?: string): string[] {
+  getHeaders(presetName?: string): IHeader[] {
     try {
       const preset = this.getPreset(presetName)
       return preset?.headers || []

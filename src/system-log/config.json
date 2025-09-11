@@ -128,7 +128,7 @@
           "file.fileSystemId",
           "user.userName"
         ],
-        "sertDesc": [
+        "sortDesc": [
           false,
           true
         ]
@@ -222,7 +222,10 @@
           "values": []
         }
       ],
-      "default_filters": {}
+      "default_filters": {
+        "sortBy": [],
+        "sortDesc": []
+      }
     }
   ]
 }
