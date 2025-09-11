@@ -5,7 +5,7 @@ import { FileRelationship } from "../entities/file_relationships.entity";
 import { applyNotLikeList } from "../shared/utils/query-utils";
 import { ActiveFileConfigService } from "./active-file-config.service";
 import { ActiveFileFilters, GraphEdge, RelationshipGraph } from "./interfaces/active-file.interface";
-import { IHeader, PaginatedResult } from "../shared/interfaces/common.interface";
+import { IDefaultFilters, IHeader, PaginatedResult } from "../shared/interfaces/common.interface";
 import { paginate } from "../shared/utils/pagination";
 
 export class ActiveFilesService {
@@ -27,7 +27,7 @@ export class ActiveFilesService {
         return this.configService.getPresetNames()
     }
 
-    async getFilters(presetName: string): Promise<Record<string, any>> {
+    async getFilters(presetName: string): Promise<IDefaultFilters> {
         return this.configService.getFilters(presetName)
     }
 

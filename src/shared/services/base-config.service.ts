@@ -1,4 +1,4 @@
-import { IConfig, IHeader, PresetConfig } from "../interfaces/common.interface";
+import { IConfig, IDefaultFilters, IHeader, PresetConfig } from "../interfaces/common.interface";
 
 export abstract class BaseConfigService {
   constructor(protected config: IConfig) { }
@@ -33,7 +33,7 @@ export abstract class BaseConfigService {
     }
   }
 
-  getFilters(presetName?: string): Record<string, any> {
+  getFilters(presetName?: string): IDefaultFilters {
     try {
       const preset = this.getPreset(presetName)
       return preset?.default_filters
@@ -54,5 +54,4 @@ export abstract class BaseConfigService {
       return []
     }
   }
-
 }
