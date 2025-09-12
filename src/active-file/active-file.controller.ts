@@ -6,6 +6,7 @@ import { validate } from "../middleware/validate";
 import { graphQueryRules, listActiveFilesQueryRules, updateStatusRules } from "./active-file.validator";
 import { asyncHandler } from "../shared/utils/async-handler";
 import { BaseController } from "../shared/controllers/base.controller";
+import { log } from "console";
 
 export class ActiveFileController extends BaseController {
     private readonly router: Router;

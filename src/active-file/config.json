@@ -124,7 +124,7 @@
       ],
       "default_filters": {
         "sortBy": [
-          "filePath",
+          "id",
           "fileSize"
         ],
         "sortDesc": [

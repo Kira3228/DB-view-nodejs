@@ -125,10 +125,10 @@
       ],
       "default_filters": {
         "sortBy": [
-          "file.fileSystemId",
-          "user.userName"
+          "relatedFileId.fileName",
+          "relatedFileId.filePath"
         ],
-        "sortDesc": [
+        "sertDesc": [
           false,
           true
         ]
@@ -181,7 +181,16 @@
           "values": []
         }
       ],
-      "default_filters": {}
+      "default_filters": {
+        "sortBy": [
+          "timestamp",
+          "filePath"
+        ],
+        "sertDesc": [
+          false,
+          true
+        ]
+      }
     },
     {
       "presetName": "test",
@@ -223,8 +232,14 @@
         }
       ],
       "default_filters": {
-        "sortBy": [],
-        "sortDesc": []
+        "sortBy": [
+          "relatedFileId.fileName",
+          "relatedFileId.filePath"
+        ],
+        "sertDesc": [
+          false,
+          true
+        ]
       }
     }
   ]
