@@ -47,4 +47,4 @@ export class ExceptionsDto {
     depth: number
     minDepth: number
     maxDepth: number
-}
+} 

@@ -1,4 +1,3 @@
-import { GraphEdge } from "../../active-file/interfaces/active-file.interface";
 import { BaseFilters, PaginationParams } from "../../shared/interfaces/common.interface";
 
 export interface SystemLogFilters extends BaseFilters, PaginationParams {

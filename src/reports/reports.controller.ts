@@ -4,6 +4,7 @@ import { ExceptionsDto, ReportDto } from "./report.dto";
 import { validate } from "../middleware/validate";
 import { eventsReportQueryRules, exceptionsQueryRules } from "./report.volidator";
 import { asyncHandler } from "../shared/utils/async-handler";
+import { log } from "console";
 const express = require('express');
 
 export class ReportController {
@@ -26,6 +27,7 @@ export class ReportController {
     async exportPdf(req: Request, res: Response) {
         try {
             const filters: Partial<ReportDto> = { ...req.query };
+            log(filters) 
             const buffer = await this.reportService.getPdfReport(filters);
             res.set({
                 'Content-Type': 'application/pdf',

@@ -53,17 +53,46 @@ export class ReportService {
 
     async getChainsPdf(filters: Partial<ExceptionsDto>) {
         const dateParams = {
-            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
-            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
+            startDate: filters.startDate ? new Date(filters.startDate).toISOString().replace('T', ' ').replace('.000Z', '') : null,
+            endDate: filters.endDate ? new Date(filters.endDate).toISOString().replace('T', ' ').replace('.000Z', '') : null
         }
-        const chains = await this.getChains(dateParams.startDate, dateParams.endDate, filters.minDepth, filters.maxDepth)
+
+        if (filters.startDate) {
+            const startDate = new Date(filters.startDate);
+            if (!isNaN(startDate.getTime())) {
+                dateParams.startDate = startDate.toISOString().replace('T', ' ').replace('.000Z', '');
+            }
+        }
+
+        if (filters.endDate) {
+            const endDate = new Date(filters.endDate);
+            if (!isNaN(endDate.getTime())) {
+                dateParams.endDate = endDate.toISOString().replace('T', ' ').replace('.000Z', '');
+            }
+        }
+
+        const chains = await this.getChains(filters.startDate, filters.endDate, filters.minDepth, filters.maxDepth)
         return this.genearteChainsPdf(chains)
     };
 
     async getChainsDocx(filters: Partial<ExceptionsDto>) {
         const dateParams = {
-            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
-            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
+            startDate: filters.startDate ? new Date(filters.startDate).toISOString().replace('T', ' ').replace('.000Z', '') : null,
+            endDate: filters.endDate ? new Date(filters.endDate).toISOString().replace('T', ' ').replace('.000Z', '') : null
+        }
+
+        if (filters.startDate) {
+            const startDate = new Date(filters.startDate);
+            if (!isNaN(startDate.getTime())) {
+                dateParams.startDate = startDate.toISOString().replace('T', ' ').replace('.000Z', '');
+            }
+        }
+
+        if (filters.endDate) {
+            const endDate = new Date(filters.endDate);
+            if (!isNaN(endDate.getTime())) {
+                dateParams.endDate = endDate.toISOString().replace('T', ' ').replace('.000Z', '');
+            }
         }
         const chains = await this.getChains(dateParams.startDate, dateParams.endDate, filters.minDepth, filters.maxDepth)
         return await this.genearteChainsDocx(chains)
@@ -71,22 +100,49 @@ export class ReportService {
 
     async getChainsXlsx(filters: Partial<ExceptionsDto>) {
         const dateParams = {
-            startDate: new Date(Number(filters.startDate)).toISOString().replace('T', ' ').replace('.000Z', ''),
-            endDate: new Date(Number(filters.endDate)).toISOString().replace('T', ' ').replace('.000Z', '')
+            startDate: filters.startDate ? new Date(filters.startDate).toISOString().replace('T', ' ').replace('.000Z', '') : null,
+            endDate: filters.endDate ? new Date(filters.endDate).toISOString().replace('T', ' ').replace('.000Z', '') : null
+        }
+
+        if (filters.startDate) {
+            const startDate = new Date(filters.startDate);
+            if (!isNaN(startDate.getTime())) {
+                dateParams.startDate = startDate.toISOString().replace('T', ' ').replace('.000Z', '');
+            }
+        }
+
+        if (filters.endDate) {
+            const endDate = new Date(filters.endDate);
+            if (!isNaN(endDate.getTime())) {
+                dateParams.endDate = endDate.toISOString().replace('T', ' ').replace('.000Z', '');
+            }
         }
         const chains = await this.getChains(dateParams.startDate, dateParams.endDate, filters.minDepth, filters.maxDepth)
         return this.genearteChainsXlsx(chains)
     };
 
     private async generateReport(filters: Partial<ReportDto>, generator: (data: string[][], headers: TableHeader[]) => Promise<Buffer> | PDFKit.PDFDocument) {
-        const { selectFields, fieldNames } = this.buildEventSelect(filters)
-        const dateRange = {
-            startDate: new Date(Number(filters.startDate)).toISOString().replace(`T`, " ").replace(`.000Z`, ''),
-            endDate: new Date(Number(filters.endDate)).toISOString().replace(`T`, " ").replace(`.000Z`, '')
-        }
+        const { selectFields, fieldNames } = this.buildEventSelect(filters);
 
-        const excludeFilePaths = this.exceptionsToArray(filters.fileExceptions)
-        const excludeProcessPaths = this.exceptionsToArray(filters.processExceptions)
+        const safeFormatDate = (dateString: any): string | null => {
+            if (!dateString) return null;
+
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                console.warn('Invalid date:', dateString);
+                return null;
+            }
+
+            return date.toISOString().replace('T', ' ').replace('.000Z', '');
+        };
+
+        const dateRange = {
+            startDate: safeFormatDate(filters.startDate),
+            endDate: safeFormatDate(filters.endDate)
+        };
+
+        const excludeFilePaths = this.exceptionsToArray(filters.fileExceptions);
+        const excludeProcessPaths = this.exceptionsToArray(filters.processExceptions);
 
         const events = await this.getEvents(
             selectFields,
@@ -94,12 +150,10 @@ export class ReportService {
             excludeProcessPaths,
             dateRange.startDate,
             dateRange.endDate
-        )
+        );
 
-        const flattenData = this.preparePdfData(events, fieldNames)
-
-        return generator(flattenData, fieldNames)
-
+        const flattenData = this.preparePdfData(events, fieldNames);
+        return generator(flattenData, fieldNames);
     }
 
     private exceptionsToArray(exceptions?: string): string[] {
