@@ -195,7 +195,7 @@ export class ActiveFilesService {
         }
 
         if (params.inode && Number.isFinite(params.inode)) {
-            qb.andWhere(`parant.inode = :inode`, { inode: params.inode })
+            qb.andWhere(`parent.inode = :inode`, { inode: params.inode })
         }
 
         if (params.presetName) {
