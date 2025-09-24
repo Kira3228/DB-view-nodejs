@@ -22,5 +22,5 @@ export type TChains = {
 
 export type TableData = {
   headers: string[]
-  rows: string[]
+  rows: string[][]
 }

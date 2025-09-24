@@ -2,7 +2,7 @@ import { Request, Response, Router } from "express";
 import { ReportService } from "./reports.service";
 import { ExceptionsDto, ReportDto } from "./report.dto";
 import { validate } from "../middleware/validate";
-import { eventsReportQueryRules, exceptionsQueryRules } from "./report.volidator";
+import { eventsReportQueryRules, exceptionsQueryRules } from "./report.validator";
 import { asyncHandler } from "../shared/utils/async-handler";
 import { log } from "console";
 const express = require('express');
@@ -27,7 +27,7 @@ export class ReportController {
     async exportPdf(req: Request, res: Response) {
         try {
             const filters: Partial<ReportDto> = { ...req.query };
-            log(filters) 
+            log(filters)
             const buffer = await this.reportService.getPdfReport(filters);
             res.set({
                 'Content-Type': 'application/pdf',
@@ -77,11 +77,13 @@ export class ReportController {
     async distributionChainsExportPdf(req: Request, res: Response) {
         try {
             const filters: Partial<ExceptionsDto> = { ...req.query }
-            const pdfDoc = await this.reportService.getChainsPdf(filters)
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', 'attachment; filename="system_logs.pdf"');
-            pdfDoc.pipe(res)
-            pdfDoc.end();
+            const buffer = await this.reportService.getChainsPdf(filters)
+            res.set({
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': 'attachment; filename="chains.pdf"',
+                'Content-Length': buffer.length
+            });
+            res.end(buffer);
         }
         catch (error) {
             console.error("Ошибка генерации PDF:", error);
