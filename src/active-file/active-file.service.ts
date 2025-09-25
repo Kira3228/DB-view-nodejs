@@ -164,18 +164,6 @@ export class ActiveFilesService {
 
         }
     }
-    private applyCommonFilters(
-        qb: ReturnType<typeof this.activeFileRepo.createQueryBuilder>,
-        filters: Partial<ActiveFileFilters>
-    ): void {
-        if (filters.filePath) {
-            qb.andWhere('file.filePath LIKE :filePath', { filePath: `%${filters.filePath}%` });
-        }
-
-        if (filters.inode) {
-            qb.andWhere('file.inode = :inode', { inode: filters.inode });
-        }
-    }
 
     private applyStatusFilter(
         qb: SelectQueryBuilder<MonitoredFile>,

@@ -1,4 +1,3 @@
-import { log } from "console";
 import { SelectQueryBuilder } from "typeorm"
 
 export const parsePathExceptions = (raw?: string): string[] => {
@@ -18,7 +17,6 @@ export const applyNotLikeList = <T>(
 ) => {
   let normalizedValues: string[] = [];
 
-  log(`values`, values)
   if (!values) { return qb }
 
   if (Array.isArray(values)) {

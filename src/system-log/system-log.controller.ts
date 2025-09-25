@@ -1,4 +1,3 @@
-// system-log/system-log.controller.ts
 import { Request, Response, Router } from "express";
 import { SystemLogService } from './system-log.service';
 import { SystemLogFilters } from "./interfaces/system-log.interface";

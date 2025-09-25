@@ -1,6 +1,5 @@
 import { SystemEvent } from "../../entities/system_events.entity";
 import { DeepPartialFlags, TableHeader } from "../report.types";
-import { ReportService } from "../reports.service";
 
 const addFieldConditionally = (
   fieldConfig: DeepPartialFlags<SystemEvent>,
