@@ -6,7 +6,7 @@ import { validate } from "../middleware/validate";
 import { graphQueryRules, listActiveFilesQueryRules, updateStatusRules } from "./active-file.validator";
 import { asyncHandler } from "../shared/utils/async-handler";
 import { BaseController } from "../shared/controllers/base.controller";
-import { log } from "console";
+import { presetNameQueryRules } from "../shared/base.validator";
 
 export class ActiveFileController extends BaseController {
     private readonly router: Router;
@@ -24,10 +24,10 @@ export class ActiveFileController extends BaseController {
         this.router.get('/archive', validate(listActiveFilesQueryRules), asyncHandler(this.getArchive.bind(this)));
         this.router.patch('/:id/status', validate(updateStatusRules), asyncHandler(this.updateStatus.bind(this)));
         this.router.get('/graph', validate(graphQueryRules), asyncHandler(this.getRelationshipGraph.bind(this)));
-        this.router.get('/headers', asyncHandler(this.getHeaders.bind(this)));
+        this.router.get('/headers', validate(presetNameQueryRules), asyncHandler(this.getHeaders.bind(this)));
         this.router.get('/presets', asyncHandler(this.getPresetNames.bind(this)));
-        this.router.get('/filters', asyncHandler(this.getFilters.bind(this)));
-        this.router.get('/exceptions', asyncHandler(this.getExceptions.bind(this)));
+        this.router.get('/filters', validate(presetNameQueryRules), asyncHandler(this.getFilters.bind(this)));
+        this.router.get('/exceptions', validate(presetNameQueryRules), asyncHandler(this.getExceptions.bind(this)));
     }
 
     async getHeaders(req: Request, res: Response): Promise<void> {

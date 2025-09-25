@@ -47,7 +47,6 @@ export class ReportService {
 
     async getChainsXlsx(filters: Partial<ExceptionsDto>) {
         return this.generateChainsReport(filters, (chains) => genearteChainsXlsx(chains, this.chainsHeaders))
-
     };
 
     private async generateChainsReport(filters: Partial<ExceptionsDto>, generator: (chains: TChains[]) => Promise<Buffer> | PDFKit.PDFDocument) {

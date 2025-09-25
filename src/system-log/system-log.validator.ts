@@ -75,3 +75,6 @@ export const selectedLogsQueryRules = [
     .custom((arr: number[]) => Array.isArray(arr) && arr.length > 0)
     .withMessage('ids must contain at least one integer'),
 ];
+
+
+

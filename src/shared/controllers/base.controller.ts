@@ -17,7 +17,7 @@ export abstract class BaseController {
     }
   }
 
-  protected async handleGetFilters(req: Request, res: Response, service: CommonService): Promise<void> {
+  protected async handleGetFilters(req: Request, res: Response, service: CommonService,): Promise<void> {
     try {
       const presetName = req.query.presetName as string
       const filters = await service.getFilters(presetName)

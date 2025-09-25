@@ -1,4 +1,4 @@
-import { getRepository, In, Repository, SelectQueryBuilder } from "typeorm";
+import { getRepository, In, Not, Repository, SelectQueryBuilder } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { NotFoundError } from "../errors/http-errors";
 import { SystemLogConfigService } from "./system-log-config.service";
@@ -33,10 +33,13 @@ export class SystemLogService {
     async getExceptions(presetName: string): Promise<IException[]> {
         try {
             const preset = this.configService.getPreset(presetName)
-            return preset?.exceptions || []
+            if (!preset.exceptions) {
+                throw new NotFoundError(`Исключения не найдены`)
+            }
+            return preset.exceptions
         }
         catch (errors) {
-            console.error(errors);
+            console.log(errors);
         }
     }
 
@@ -59,8 +62,11 @@ export class SystemLogService {
         try {
             const qb = this.createBaseQuery();
             this.applyAllFilters(qb, filters);
-
-            return await this.paginateQuery(qb, filters);
+            const paginate = await this.paginateQuery(qb, filters);
+            if (!paginate) {
+                throw new NotFoundError()
+            }
+            return paginate
         } catch (error) {
             console.error('Ошибка получения отфильтрованных событий:', error);
             throw new Error('Не удалось получить отфильтрованные события');
@@ -94,7 +100,9 @@ export class SystemLogService {
                 .createQueryBuilder('event')
                 .select('DISTINCT event.eventType', 'eventType')
                 .getRawMany();
-
+            if (!result) {
+                throw NotFoundError
+            }
             return result.map(item => item.eventType).filter(Boolean);
         } catch (error) {
             console.error('Ошибка получения типов событий:', error);

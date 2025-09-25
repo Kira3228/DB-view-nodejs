@@ -6,6 +6,7 @@ import { validate } from "../middleware/validate";
 import { filteredSystemLogQueryRules, selectedLogsQueryRules } from "./system-log.validator";
 import { asyncHandler } from "../shared/utils/async-handler";
 import { BaseController } from "../shared/controllers/base.controller";
+import { presetNameQueryRules } from "../shared/base.validator";
 
 export class SystemLogController extends BaseController {
     private readonly router: Router;
@@ -20,14 +21,14 @@ export class SystemLogController extends BaseController {
 
     private initializeRoutes(): void {
         this.router.get('/', asyncHandler(this.getAllSystemLogs.bind(this)));
-        this.router.get('/headers', asyncHandler(this.getHeaders.bind(this)));
+        this.router.get('/headers', validate(presetNameQueryRules), asyncHandler(this.getHeaders.bind(this)));
         this.router.get('/search', validate(filteredSystemLogQueryRules), asyncHandler(this.getFilteredSystemLog.bind(this)));
         this.router.get('/export.csv', validate(selectedLogsQueryRules), asyncHandler(this.getSelectedLogs.bind(this)));
         this.router.get('/export/all', asyncHandler(this.exportAllCSV.bind(this)));
         this.router.get('/options', asyncHandler(this.getAllEventTypes.bind(this)));
         this.router.get('/presets', asyncHandler(this.getPresetNames.bind(this)));
-        this.router.get('/filters', asyncHandler(this.getFilters.bind(this)));
-        this.router.get('/exceptions', asyncHandler(this.getExceptions.bind(this)));
+        this.router.get('/filters', validate(presetNameQueryRules), asyncHandler(this.getFilters.bind(this)));
+        this.router.get('/exceptions', validate(presetNameQueryRules), asyncHandler(this.getExceptions.bind(this)));
     }
 
     async getHeaders(req: Request, res: Response): Promise<void> {
