@@ -7,7 +7,6 @@ import { ActiveFileConfigService } from "./active-file-config.service";
 import { ActiveFileFilters, GraphEdge, RelationshipGraph } from "./interfaces/active-file.interface";
 import { IDefaultFilters, IHeader, PaginatedResult } from "../shared/interfaces/common.interface";
 import { paginate } from "../shared/utils/pagination";
-import { NotFoundError } from "../errors/http-errors";
 
 export class ActiveFilesService {
     private readonly activeFileRepo: Repository<MonitoredFile>
@@ -35,13 +34,11 @@ export class ActiveFilesService {
     async getExceptions(presetName: string) {
         try {
             const preset = this.configService.getPreset(presetName)
-            if (!preset) {
-                throw new NotFoundError()
-            }
-            return preset.exceptions
+            return preset?.exceptions || {}
         }
         catch (error) {
             console.error(error);
+            return {}
         }
     }
 
@@ -50,11 +47,7 @@ export class ActiveFilesService {
             const qb = this.createBaseQuery()
             this.applyFilters(qb, filters)
             this.applyStatusFilter(qb, [`active`])
-            const paginate = await this.paginateQuery(qb, filters)
-            if (!paginate) {
-                throw new NotFoundError()
-            }
-            return paginate
+            return await this.paginateQuery(qb, filters)
         }
         catch (error) {
             console.error(error);
@@ -66,11 +59,7 @@ export class ActiveFilesService {
             const qb = this.createBaseQuery()
             this.applyFilters(qb, filters)
             this.applyStatusFilter(qb, [`archived`, "deleted"])
-            const paginate = await this.paginateQuery(qb, filters)
-            if (!paginate) {
-                throw new NotFoundError()
-            }
-            return paginate
+            return await this.paginateQuery(qb, filters)
         }
         catch (error) {
             console.error(error);
@@ -87,7 +76,7 @@ export class ActiveFilesService {
 
             const updatedFile = await this.activeFileRepo.findOne({ where: { id } })
             if (!updatedFile) {
-                throw new NotFoundError()
+                throw new Error
             }
 
             return updatedFile
@@ -107,9 +96,6 @@ export class ActiveFilesService {
             this.applyRelationshipFilters(qb, { filePath, inode, presetName, filePathException })
 
             const relations = await qb.getMany()
-            if (!relations) {
-                throw new NotFoundError()
-            }
             return this.processRelations(relations)
         } catch (error) {
             console.error(error);
@@ -175,6 +161,7 @@ export class ActiveFilesService {
         }
         catch (error) {
             console.error(error);
+
         }
     }
     private applyCommonFilters(
@@ -235,11 +222,8 @@ export class ActiveFilesService {
     ): Promise<PaginatedResult<MonitoredFile>> {
         const page = Math.max(1, filters.page || 1)
         const limit = Math.min(100, Math.max(1, filters.limit || 30))
-        const pages = await paginate(qb, page, limit, `files`)
-        if (!pages) {
-            throw new NotFoundError()
-        }
-        return pages
+
+        return await paginate(qb, page, limit, `files`)
     }
 
     private processRelations(relations: FileRelationship[]): RelationshipGraph {
@@ -276,6 +260,7 @@ export class ActiveFilesService {
         }
 
         const roots = Array.from(nodes.keys()).filter(id => !hasParent.has(id))
+
         return {
             nodes: Array.from(nodes.values()),
             edges,
