@@ -20,15 +20,7 @@
           "align": "start",
           "sortable": true,
           "isVisible": true,
-          "width": 80
-        },
-        {
-          "text": "Данные события",
-          "value": "eventData",
-          "align": "start",
-          "sortable": true,
-          "isVisible": true,
-          "width": 80
+          "width": 50
         },
         {
           "text": "Тип",

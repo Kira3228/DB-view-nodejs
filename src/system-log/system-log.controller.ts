@@ -5,6 +5,8 @@ import { validate } from "../middleware/validate";
 import { filteredSystemLogQueryRules, selectedLogsQueryRules } from "./system-log.validator";
 import { asyncHandler } from "../shared/utils/async-handler";
 import { BaseController } from "../shared/controllers/base.controller";
+import { log } from "console";
+import { SystemEventDto } from "./dto/system-event.dto";
 
 export class SystemLogController extends BaseController {
     private readonly router: Router;
@@ -45,9 +47,10 @@ export class SystemLogController extends BaseController {
         await this.handleGetExceptions(req, res, this.systemLogService);
     }
 
-    async getAllSystemLogs(req: Request, res: Response): Promise<void> {
+    async getAllSystemLogs(req: Request<any, any, any, SystemEventDto>, res: Response): Promise<void> {
         try {
-            const result = await this.systemLogService.getSystemEvents();
+            log(req.query)
+            const result = await this.systemLogService.getSystemEvents(req.query);
             res.status(200).json(result);
         } catch (error) {
 

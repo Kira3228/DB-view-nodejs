@@ -4,8 +4,10 @@ import { NotFoundError } from "../errors/http-errors";
 import { SystemLogConfigService } from "./system-log-config.service";
 import { CSVExport, SystemLogFilters } from "./interfaces/system-log.interface";
 import { applyNotLikeList } from "../shared/utils/query-utils";
-import { IException, PaginatedResult } from "../shared/interfaces/common.interface";
+import { IException, IHeader, PaginatedResult } from "../shared/interfaces/common.interface";
 import { paginate } from "../shared/utils/pagination";
+import { log } from "console";
+import { SystemEventDto } from "./dto/system-event.dto";
 
 
 export class SystemLogService {
@@ -18,7 +20,7 @@ export class SystemLogService {
     }
 
 
-    async getHeaders(presetName?: string): Promise<any> {
+    async getHeaders(presetName?: string): Promise<IHeader[]> {
         return this.configService.getHeaders(presetName)
     }
 
@@ -40,26 +42,56 @@ export class SystemLogService {
         }
     }
 
-    async getSystemEvents(): Promise<SystemEvent[]> {
+    async getSystemEvents(dto: SystemEventDto) {
         try {
-            const qb = this.createBaseQuery()
-                .leftJoinAndSelect("event.relatedProcessId.user", "user")
-                .addSelect(["user.id", "user.userName"]);
-
-            const events = await qb.getMany();
-
-            if (!events || events.length === 0) {
-                throw new NotFoundError('События не найдены');
+            log(dto)
+            const headers = await this.getHeaders(dto.presetName)
+            if (!headers || headers.length === 0) {
+                throw new NotFoundError('Заголовки не найдены');
             }
-            return events;
+            const qb = await this.createBaseQuery()
+            const skip = (Number(dto.page) - 1) * dto.limit
+            const [events, totalCount] = await qb.skip(skip).take(dto.limit).getManyAndCount()
+
+
+            // .leftJoinAndSelect("event.relatedProcessId.user", "user")
+            // .addSelect(["user.id", "user.userName"]);
+
+            // const events = await qb.getMany();
+
+            // if (!events || events.length === 0) {
+            //     throw new NotFoundError('События не найдены');
+            // }
+            return {
+                headers,
+                events: events,
+                totalCount,
+                totalPage: dto.limit > 0 ? Math.ceil(totalCount / dto.limit) : 0,
+            };
         }
-        catch { }
+        catch (error) {
+            log(error)
+        }
     }
+    // async getSystemEvents(): Promise<SystemEvent[]> {
+    //     try {
+    //         const qb = this.createBaseQuery()
+    //             .leftJoinAndSelect("event.relatedProcessId.user", "user")
+    //             .addSelect(["user.id", "user.userName"]);
+
+    //         const events = await qb.getMany();
+
+    //         if (!events || events.length === 0) {
+    //             throw new NotFoundError('События не найдены');
+    //         }
+    //         return events;
+    //     }
+    //     catch { }
+    // }
     async getFilteredSystemEvents(filters: SystemLogFilters): Promise<PaginatedResult<SystemEvent>> {
         try {
             const qb = this.createBaseQuery();
             this.applyAllFilters(qb, filters);
-
             return await this.paginateQuery(qb, filters);
         } catch (error) {
             console.error('Ошибка получения отфильтрованных событий:', error);
