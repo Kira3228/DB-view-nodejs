@@ -42,16 +42,76 @@ export class SystemLogService {
         }
     }
 
+    async getSystemEventsTypes() {
+        try {
+            const result = await this.systemLogRepo
+                .createQueryBuilder(`log`)
+                .select("DISTINCT log.eventType", `eventType`)
+                .getRawMany()
+
+            return result.map(item => item.eventType).filter(Boolean);
+        }
+        catch (error) {
+            console.error(error);
+            return [];
+        }
+    }
+
     async getSystemEvents(dto: SystemEventDto) {
         try {
-            log(dto)
             const headers = await this.getHeaders(dto.presetName)
             if (!headers || headers.length === 0) {
                 throw new NotFoundError('Заголовки не найдены');
             }
+            // qb.andWhere(`event.eventType = :eventType`, { eventType: filters.eventType.trim() })
+
+
+
             const qb = await this.createBaseQuery()
             const skip = (Number(dto.page) - 1) * dto.limit
-            const [events, totalCount] = await qb.skip(skip).take(dto.limit).getManyAndCount()
+
+            if (dto.fileSystemId?.trim()) {
+                qb.andWhere(
+                    'file.fileSystemId LIKE :relatedFileSystemId',
+                    { relatedFileSystemId: `%${dto.fileSystemId.trim()}%` }
+                );
+            }
+
+            if (dto.eventType) {
+                qb.andWhere(`event.eventType = :eventType`, { eventType: dto.eventType.trim() })
+            }
+
+            if (dto.status?.trim()) {
+                qb.andWhere(`file.status = :status`, { status: dto.status })
+            }
+
+            if (dto.filePath?.trim()) {
+                qb.andWhere('file.filePath LIKE :relatedFilePath', { relatedFilePath: `%${dto.filePath.trim()}%` });
+            }
+
+            if (dto.startDate && !dto.endDate) {
+                qb.andWhere(`event.timestamp >= :start`, {
+                    start: dto.startDate,
+                })
+            }
+
+            if (!dto.startDate && dto.endDate) {
+                qb.andWhere(`event.timestamp <= :end`, {
+                    end: dto.endDate,
+                })
+            }
+            if (dto.startDate && dto.endDate) {
+                qb.andWhere(`event.timestamp BETWEEN :start AND :end`, {
+                    start: dto.startDate,
+                    end: dto.endDate,
+                })
+            }
+
+
+            const [events, totalCount] = await qb
+                .skip(skip)
+                .take(dto.limit)
+                .getManyAndCount()
 
 
             // .leftJoinAndSelect("event.relatedProcessId.user", "user")
@@ -211,6 +271,7 @@ export class SystemLogService {
             if (!dateStr) return undefined
 
             const d = new Date(dateStr)
+
             if (isNaN(d.getTime())) return undefined
 
             return d.toISOString().replace(`T`, ` `).slice(0, 19)

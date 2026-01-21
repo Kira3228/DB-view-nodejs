@@ -29,6 +29,7 @@ export class SystemLogController extends BaseController {
         this.router.get('/presets', asyncHandler(this.getPresetNames.bind(this)));
         this.router.get('/filters', asyncHandler(this.getFilters.bind(this)));
         this.router.get('/exceptions', asyncHandler(this.getExceptions.bind(this)));
+        this.router.get('/types', this.getSystemEventsTypes.bind(this))
     }
 
     async getHeaders(req: Request, res: Response): Promise<void> {
@@ -54,6 +55,15 @@ export class SystemLogController extends BaseController {
             res.status(200).json(result);
         } catch (error) {
 
+        }
+    }
+    async getSystemEventsTypes(req: Request, res: Response) {
+        try {
+            const result = await this.systemLogService.getSystemEventsTypes()
+            res.status(200).json(result)
+        }
+        catch (error) {
+            log(error)
         }
     }
 
