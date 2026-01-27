@@ -2,11 +2,6 @@ import PdfPrinter from "pdfmake";
 import { TDocumentDefinitions, TFontDictionary } from "pdfmake/interfaces";
 import { TableData, TableHeader } from "../../report.types";
 
-type RenderOptions = {
-  title: string
-  generatedAt: string
-}
-
 export const generatePdf = (flattenData: string[][], fieldNames: TableHeader[], fontPath: string): Promise<Buffer> => {
   const fonts: TFontDictionary = {
     Roboto: {

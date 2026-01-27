@@ -1,6 +1,6 @@
 import { SystemEvent } from "../entities/system_events.entity";
 import * as path from 'path';
-import { ReportDto, ExceptionsDto } from "./report.dto";
+import { ReportDto, ExceptionsDto, ReportData, ReportHeader } from "./report.dto";
 import { TableHeader, TChains } from "./report.types";
 import { buildEventSelectHelper } from "./utils/build-event-select-helper";
 import { getOriginalFieldNameHelper } from "./utils/get-original-field-name";
@@ -15,6 +15,8 @@ import { ChainsService } from "./chains.service";
 import { EventService } from "./event.service";
 import { toFlattenObject } from "./utils/to-flatten-object";
 import { exceptionsToArray } from "./utils/exceptions-to-array";
+import { log } from "console";
+import { text } from "stream/consumers";
 
 export class ReportService {
     private chainService: ChainsService
@@ -97,17 +99,17 @@ export class ReportService {
         const excludeFilePaths = exceptionsToArray(filters.fileExceptions);
         const excludeProcessPaths = exceptionsToArray(filters.processExceptions);
 
-        const events = await this.eventService.getEvents(
-            selectFields,
-            excludeFilePaths,
-            excludeProcessPaths,
-            dateRange.startDate,
-            dateRange.endDate
-        );
+        // const events = await this.eventService.getEvents(
+        //     selectFields,
+        //     // excludeFilePaths,
+        //     // excludeProcessPaths,
+        //     // dateRange.startDate,
+        //     // dateRange.endDate
+        // );
 
-        const flattenData = this.preparePdfData(events, fieldNames);
+        // const flattenData = this.preparePdfData(events, fieldNames);
 
-        return generator(flattenData, fieldNames);
+        // return generator(flattenData, fieldNames);
     }
 
     private preparePdfData(events: SystemEvent[], fieldNames: { text: string, style: string }[]): string[][] {
@@ -127,5 +129,58 @@ export class ReportService {
             });
             return row;
         });
+    }
+
+    async getReport(dto: ReportData) {
+        switch (dto.format) {
+            case `pdf`: {
+                return await this.prepareData(dto.headers, dto.startDate, dto.endDate, (data, headers) => generatePdf(data, headers, this.robotoFontPath))
+            }
+            case `docx`: {
+                return await this.prepareData(dto.headers, dto.startDate, dto.endDate, (data, headers) => generateDocx(data, headers))
+            }
+            case `xlsx`: {
+                return await this.prepareData(dto.headers, dto.startDate, dto.endDate, (data, headers) => generateXlsx(data, headers))
+            }
+        }
+    }
+
+    private async prepareData(headers: ReportHeader[], startDate: string, endDate: string, generator: (data: string[][], headers: TableHeader[]) => Promise<Buffer> | PDFKit.PDFDocument) {
+
+        const tableFields = headers.map(header => {
+            const parts = header.value.split('.');
+            if (parts[0] === 'relatedFileId') {
+                return `file.${parts[1]}`;
+            }
+            else if (parts[0] === 'relatedProcessId') {
+                return `process.${parts[1]}`;
+            }
+            else if (parts.length > 1) {
+                return header.value;
+            }
+            else {
+                return `event.${header.value}`;
+            }
+        })
+
+        const tableHeaders = headers.map(header => {
+            return {
+                text: header.text,
+                style: 'tableHeader'
+            }
+        })
+
+        const events = await this.eventService.getEvents({
+            selectFields: tableFields,
+            startDate: startDate,
+            endDate: endDate
+        }
+        );
+
+        log(events)
+
+        const flattenData = this.preparePdfData(events, tableHeaders);
+
+        return generator(flattenData, tableHeaders);
     }
 }

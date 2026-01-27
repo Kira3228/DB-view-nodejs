@@ -1,22 +1,24 @@
 import { getRepository, Repository, SelectQueryBuilder } from "typeorm";
 import { MonitoredFile } from "../entities/monitored_file.entity";
-import { UpdateStatusDto } from "./dto/updateStatus.dto";
+import { UpdateStatusDto } from "./dto/update-status.dto";
 import { FileRelationship } from "../entities/file_relationships.entity";
-import { applyNotLikeList } from "../shared/utils/query-utils";
 import { ActiveFileConfigService } from "./active-file-config.service";
-import { ActiveFileFilters, GraphEdge, RelationshipGraph } from "./interfaces/active-file.interface";
-import { IDefaultFilters, IHeader, PaginatedResult } from "../shared/interfaces/common.interface";
-import { paginate } from "../shared/utils/pagination";
+import { IDefaultFilters, IHeader } from "../shared/interfaces/common.interface";
+import { ActiveFileDtoFilter } from "./dto/acrive-file.dto";
+import { FileChainView } from "../entities/ViewFileChains";
+import { ChainsDto } from "./dto/chains.dto";
 
 export class ActiveFilesService {
     private readonly activeFileRepo: Repository<MonitoredFile>
     private readonly relationRepo: Repository<FileRelationship>
     private readonly configService: ActiveFileConfigService
+    private readonly fileChainsRepo: Repository<FileChainView>
 
     constructor() {
         this.activeFileRepo = getRepository(MonitoredFile)
         this.relationRepo = getRepository(FileRelationship)
         this.configService = new ActiveFileConfigService()
+        this.fileChainsRepo = getRepository(FileChainView)
     }
 
     async getHeaders(presetName?: string): Promise<IHeader[]> {
@@ -42,29 +44,48 @@ export class ActiveFilesService {
         }
     }
 
-    async getActiveFile(filters: ActiveFileFilters): Promise<PaginatedResult<MonitoredFile>> {
+    async getActiveFile(dto: ActiveFileDtoFilter) {
         try {
-            const qb = this.createBaseQuery()
-            this.applyFilters(qb, filters)
-            this.applyStatusFilter(qb, [`active`])
-            return await this.paginateQuery(qb, filters)
+
+            let whereCondition = ``;
+            let whereParams
+            if (dto.isArchived === "archived") {
+                whereCondition = `file.status = :archived OR file.status = :deleted`
+                whereParams = {
+                    archived: dto.isArchived,
+                    deleted: `deleted`
+                }
+            }
+            const headers = await this.getHeaders()
+            const skip = (Number(dto.page) - 1) * dto.limit
+            const [files, filesCount] = await this
+                .activeFileRepo
+                .createQueryBuilder(`file`)
+                .skip(skip)
+                .take(dto.limit)
+                .select([
+                    "file.id",
+                    "file.inode",
+                    "file.fileSize",
+                    "file.filePath",
+                    "file.minChainDepth",
+                    "file.maxChainDepth",
+                    "file.status"
+                ])
+                .where(whereCondition, whereParams)
+                .getManyAndCount()
+            return {
+                headers,
+                files,
+                filesCount,
+                totalPage: dto.limit > 0 ? Math.ceil(filesCount / dto.limit) : 0,
+            }
         }
         catch (error) {
             console.error(error);
         }
     }
 
-    async getArchivedFile(filters: ActiveFileFilters): Promise<PaginatedResult<MonitoredFile>> {
-        try {
-            const qb = this.createBaseQuery()
-            this.applyFilters(qb, filters)
-            this.applyStatusFilter(qb, [`archived`, "deleted"])
-            return await this.paginateQuery(qb, filters)
-        }
-        catch (error) {
-            console.error(error);
-        }
-    }
 
     async updateStatus(dto: UpdateStatusDto, id: number): Promise<MonitoredFile> {
         try {
@@ -86,174 +107,37 @@ export class ActiveFilesService {
         }
     }
 
-    async relationGraph(
-        filePath?: string,
-        inode?: number,
-        filePathException?: string,
-        presetName?: string): Promise<RelationshipGraph> {
-        try {
-            const qb = this.createRelationshipQuery()
-            this.applyRelationshipFilters(qb, { filePath, inode, presetName, filePathException })
+    async getFileChains() {
+        const allChains = await this.fileChainsRepo.find()
+        return allChains;
 
-            const relations = await qb.getMany()
-            return this.processRelations(relations)
-        } catch (error) {
-            console.error(error);
+    }
+
+    async getTreeNode(params: ChainsDto) {
+        const qb = this.activeFileRepo.createQueryBuilder(`file`)
+
+        if (params.id === 'all') {
+            qb.where(`file.isOriginalMarked = :isOriginal`, { isOriginal: true })
         }
-    }
+        else {
+            qb.innerJoin(`file_relationships`, `rel`, `rel.child_file_id = file.id`)
+                .where(`rel.parent_file_id = :pid`, { pid: params.id })
+                .addSelect(`rel.relationship_type`, `relType`)
+        }
+        const files = await qb.getMany()
 
-    private createRelationshipQuery(): SelectQueryBuilder<FileRelationship> {
-        return this.relationRepo
-            .createQueryBuilder(`rel`)
-            .leftJoinAndSelect(`rel.parentFile`, `parent`)
-            .leftJoinAndSelect(`rel.childFile`, `child`)
-    }
-
-    private createBaseQuery(): SelectQueryBuilder<MonitoredFile> {
-        return this.activeFileRepo.createQueryBuilder(`file`)
-            .select([
-                "file.id",
-                "file.inode",
-                "file.fileSize",
-                "file.filePath",
-                "file.minChainDepth",
-                "file.maxChainDepth",
-                "file.status"
-            ])
-    }
-
-    private applyFilters(qb: SelectQueryBuilder<MonitoredFile>, filters: ActiveFileFilters): void {
-        if (filters.filePath?.trim()) {
-            qb.andWhere(`file.filePath LIKE :filePath`, {
-                filePath: `%${filters.filePath.trim()}%`
+        const result = await Promise.all(files.map(async (file) => {
+            const childrenCount = await this.relationRepo.count({
+                where: { parentFileId: file.id }
             })
-        }
 
-        if (filters.inode && Number.isFinite(filters.inode)) {
-            qb.andWhere(`file.inode = :inode`, { inode: filters.inode })
-        }
-
-        this.applyPresetExceptions(qb, filters.presetName)
-
-        if (filters.filePathException?.length) {
-            applyNotLikeList(qb, `file`, `filePath`, filters.filePathException, `both`)
-        }
-
-        if (filters.processPathException?.length) {
-            applyNotLikeList(qb, `file`, `processPath`, filters.processPathException, `both`)
-        }
-
-    }
-
-    private applyPresetExceptions(qb: SelectQueryBuilder<MonitoredFile>, presetName?: string): void {
-        if (!presetName) { return }
-
-        try {
-            const filePathExceptions = this.configService.getFieldExceptions(presetName, `filePath`)
-            if (filePathExceptions.length > 0) {
-                applyNotLikeList(qb, `file`, `filePath`, filePathExceptions, `both`)
-            }
-
-            const inodeExceptions = this.configService.getFieldExceptions(presetName, `inode`)
-            if (inodeExceptions.length > 0) {
-                applyNotLikeList(qb, `file`, `inode`, inodeExceptions, `both`)
-            }
-        }
-        catch (error) {
-            console.error(error);
-
-        }
-    }
-
-    private applyStatusFilter(
-        qb: SelectQueryBuilder<MonitoredFile>,
-        statuses: Array<'active' | 'archived' | 'deleted'>
-    ): void {
-        if (statuses.length > 0) {
-            qb.andWhere(`file.status IN (:...statuses)`, { statuses })
-        }
-    }
-
-    private applyRelationshipFilters(
-        qb: SelectQueryBuilder<FileRelationship>,
-        params: { filePath?: string; inode?: number; filePathException?: string; presetName?: string }
-    ): void {
-        if (params.filePath?.trim()) {
-            qb.andWhere(`parent.filePath LIKE :fp`, { fp: `%${params.filePath.trim()}%` })
-        }
-
-        if (params.inode && Number.isFinite(params.inode)) {
-            qb.andWhere(`parent.inode = :inode`, { inode: params.inode })
-        }
-
-        if (params.presetName) {
-            const excludeFilePaths = this.configService
-                .getFieldExceptions(params.presetName, `filePath`)
-            if (excludeFilePaths.length > 0) {
-                applyNotLikeList(qb, `parent`, `filePath`, excludeFilePaths, `both`)
-                applyNotLikeList(qb, `child`, `filePath`, excludeFilePaths, `both`)
-            }
-        }
-
-        if (params.filePathException) {
-            const exceptions = params.filePathException.split(`;`).filter(Boolean)
-            if (exceptions.length > 0) {
-                applyNotLikeList(qb, 'parent', 'filePath', exceptions, 'both');
-                applyNotLikeList(qb, 'child', 'filePath', exceptions, 'both');
-            }
-        }
-    }
-
-    private async paginateQuery(
-        qb: SelectQueryBuilder<MonitoredFile>,
-        filters: ActiveFileFilters
-    ): Promise<PaginatedResult<MonitoredFile>> {
-        const page = Math.max(1, filters.page || 1)
-        const limit = Math.min(100, Math.max(1, filters.limit || 30))
-
-        return await paginate(qb, page, limit, `files`)
-    }
-
-    private processRelations(relations: FileRelationship[]): RelationshipGraph {
-        const nodes = new Map<number, any>
-        const edges: GraphEdge[] = []
-        const edgeKeys = new Set<string>()
-        const hasParent = new Set<number>()
-
-        const normalizedString = (s?: string) => (s ?? ``).trim().toLowerCase()
-
-        for (const rel of relations) {
-            const fromId = rel.parentFileId
-            const toId = rel.childFileId
-
-            if (!nodes.has(fromId)) {
-                nodes.set(fromId, rel.parentFile)
-            }
-
-            if (!nodes.has(toId)) {
-                nodes.set(toId, rel.childFile)
-            }
-
-            const key = `${fromId}-${toId}-${normalizedString(rel.relationshipType)}`;
-            if (!edgeKeys.has(key)) {
-                edges.push({
-                    type: rel.relationshipType,
-                    fromId,
-                    toId,
-                    createdAt: rel.createdAt
-                })
-                edgeKeys.add(key)
-                hasParent.add(toId)
-            }
-        }
-
-        const roots = Array.from(nodes.keys()).filter(id => !hasParent.has(id))
-
-        return {
-            nodes: Array.from(nodes.values()),
-            edges,
-            roots
-        }
+            return {
+                id: file.id,
+                name: file.filePath,
+                hasChildren: childrenCount > 0,
+                fileData: file
+            };
+        }))
+        return { roots: result }
     }
 }
-

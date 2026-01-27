@@ -55,13 +55,6 @@
           "sortable": true,
           "isVisible": true,
           "width": 80
-        },
-        {
-          "text": "Изменить статус",
-          "value": "changeStatus",
-          "sortable": true,
-          "isVisible": true,
-          "width": 80
         }
       ],
       "exceptions": [
