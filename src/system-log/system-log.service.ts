@@ -3,7 +3,6 @@ import { SystemEvent } from "../entities/system_events.entity";
 import { NotFoundError } from "../errors/http-errors";
 import { SystemLogConfigService } from "./system-log-config.service";
 import { CSVExport } from "./interfaces/system-log.interface";
-import { } from "../shared/utils/query-utils";
 import { IException, IHeader, } from "../shared/interfaces/common.interface";
 import { log } from "console";
 import { SystemEventDto } from "./dto/system-event.dto";
@@ -16,7 +15,6 @@ export class SystemLogService {
         this.systemLogRepo = getRepository(SystemEvent)
         this.configService = new SystemLogConfigService()
     }
-
 
     async getHeaders(presetName?: string): Promise<IHeader[]> {
         return this.configService.getHeaders(presetName)
@@ -194,6 +192,7 @@ export class SystemLogService {
     private csvGenerator(data: SystemEvent[]): CSVExport {
         if (!data || data.length === 0) {
             return { data: [], headers: ``, rows: '' }
+
         }
         const headers = Object.keys(data[0]).join(`,`)
         const rows = data

@@ -1,4 +1,4 @@
-import { getRepository, Repository, SelectQueryBuilder } from "typeorm";
+import { Brackets, getRepository, Repository, SelectQueryBuilder } from "typeorm";
 import { MonitoredFile } from "../entities/monitored_file.entity";
 import { UpdateStatusDto } from "./dto/update-status.dto";
 import { FileRelationship } from "../entities/file_relationships.entity";
@@ -46,19 +46,9 @@ export class ActiveFilesService {
 
     async getActiveFile(dto: ActiveFileDtoFilter) {
         try {
-
-            let whereCondition = ``;
-            let whereParams
-            if (dto.isArchived === "archived") {
-                whereCondition = `file.status = :archived OR file.status = :deleted`
-                whereParams = {
-                    archived: dto.isArchived,
-                    deleted: `deleted`
-                }
-            }
-            const headers = await this.getHeaders()
             const skip = (Number(dto.page) - 1) * dto.limit
-            const [files, filesCount] = await this
+
+            const query = await this
                 .activeFileRepo
                 .createQueryBuilder(`file`)
                 .skip(skip)
@@ -72,8 +62,26 @@ export class ActiveFilesService {
                     "file.maxChainDepth",
                     "file.status"
                 ])
-                .where(whereCondition, whereParams)
-                .getManyAndCount()
+
+            if (dto.isArchived === "archived") {
+                query.where(`(file.status = :archived OR file.status = :deleted)`, {
+                    archived: dto.isArchived,
+                    deleted: `deleted`
+                })
+            }
+            if (dto.search && dto.search.trim() !== '') {
+                query.andWhere(
+                    new Brackets((qb) => {
+                        qb.where('file.filePath LIKE :search', { search: `${dto.search}%` })
+                            .orWhere('CAST(file.inode AS TEXT) LIKE :search', { search: `${dto.search}%` });
+                    })
+                );
+            }
+
+            const [files, filesCount] = await query.getManyAndCount()
+
+            const headers = await this.getHeaders()
+
             return {
                 headers,
                 files,

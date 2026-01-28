@@ -8,9 +8,3 @@ export const normalizeDate = (input?: string | Date): string | null => {
   return isNaN(d.getTime()) ? null : d.toISOString().replace(`T`, '').replace(`000Z`, '')
 }
 
-export const normalizeDateRange = <T extends { startDate?: any, endDate: any }>(filters: T) => {
-  return {
-    startDate: normalizeDate(filters.startDate),
-    endDate: normalizeDate(filters.endDate)
-  }
-}

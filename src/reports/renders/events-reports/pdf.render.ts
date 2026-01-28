@@ -1,6 +1,6 @@
 import PdfPrinter from "pdfmake";
 import { TDocumentDefinitions, TFontDictionary } from "pdfmake/interfaces";
-import { TableData, TableHeader } from "../../report.types";
+import { TableHeader } from "../../report.types";
 
 export const generatePdf = (flattenData: string[][], fieldNames: TableHeader[], fontPath: string): Promise<Buffer> => {
   const fonts: TFontDictionary = {

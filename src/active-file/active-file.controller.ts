@@ -26,6 +26,7 @@ export class ActiveFileController extends BaseController {
         this.router.get('/presets', asyncHandler(this.getPresetNames.bind(this)));
         this.router.get('/filters', asyncHandler(this.getFilters.bind(this)));
         this.router.get('/exceptions', asyncHandler(this.getExceptions.bind(this)));
+        this.router.get('/details', this.getTreeNode.bind(this));
         this.router.get('/chain', this.getFileChains.bind(this));
     }
 
@@ -46,39 +47,24 @@ export class ActiveFileController extends BaseController {
     }
 
     async getActive(req: Request<any, any, any, ActiveFileDtoFilter>, res: Response): Promise<void> {
-        try {
-            req.query
-            const result = await this.activeFileService.getActiveFile(req.query)
-            res.status(200).json(result);
-        } catch (error) {
-        }
+        const result = await this.activeFileService.getActiveFile(req.query)
+        res.status(200).json(result);
     }
 
-    async updateStatus(req: Request, res: Response): Promise<void> {
-        try {
-            const body: UpdateStatusDto = req.body;
-            console.log(body);
-            const id: number = parseInt(req.params.id);
-            if (isNaN(id) || id <= 0) {
-                res.status(400).json({
-                    status: 400,
-                    code: "INVALID_ID",
-                    message: "Некорректный ID файла"
-                });
-                return;
-            }
-            const result = await this.activeFileService.updateStatus(body, id);
-            res.status(200).json(result);
-        } catch (error) {
-
-        }
+    async updateStatus(req: Request<{ id: number }, any, UpdateStatusDto>, res: Response): Promise<void> {
+        const result = await this.activeFileService.updateStatus(req.body, Number(req.params.id));
+        res.status(200).json(result);
     }
 
-    async getFileChains(req: Request<any, any, any, ChainsDto>, res: Response) {
+    async getTreeNode(req: Request<any, any, any, ChainsDto>, res: Response) {
         const allChains = await this.activeFileService.getTreeNode(req.query)
         res.status(200).json(allChains);
     }
 
+    async getFileChains(req: Request, res: Response) {
+        const allChains = await this.activeFileService.getFileChains()
+        res.status(200).json(allChains);
+    }
 
     getRouter(): Router {
         return this.router;

@@ -1,6 +1,5 @@
 import { getRepository } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
-import { log } from "console";
 
 export class EventService {
   private eventRepo = getRepository(SystemEvent);
@@ -20,8 +19,6 @@ export class EventService {
         dbFields.push(`event.id`)
       }
 
-
-      log(`В ивент сервисе`, settings.selectFields)
       let query = this.eventRepo
         .createQueryBuilder('event')
         .leftJoinAndSelect('event.relatedFileId', 'file')

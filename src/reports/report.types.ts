@@ -4,12 +4,6 @@ export type TableHeader = {
 };
 
 
-export type DeepPartialFlags<T> = {
-  [K in keyof T]?:
-  T[K] extends object
-  ? DeepPartialFlags<T[K]>
-  : boolean | string;
-};
 
 export type TChains = {
   ancestorId: number;

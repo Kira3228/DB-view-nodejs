@@ -46,50 +46,30 @@ export class SystemLogController extends BaseController {
     }
 
     async getAllSystemLogs(req: Request<any, any, any, SystemEventDto>, res: Response): Promise<void> {
-        try {
-            const result = await this.systemLogService.getSystemEvents(req.query);
-            res.status(200).json(result);
-        } catch (error) {
-
-        }
+        const result = await this.systemLogService.getSystemEvents(req.query);
+        res.status(200).json(result);
     }
 
     async getSystemEventsTypes(req: Request, res: Response) {
-        try {
-            const result = await this.systemLogService.getSystemEventsTypes()
-            res.status(200).json(result)
-        }
-        catch (error) {
-        }
+        const result = await this.systemLogService.getSystemEventsTypes()
+        res.status(200).json(result)
     }
 
     async getSelectedLogs(req: Request<any, any, any, { ids: number[] }>, res: Response): Promise<void> {
-        try {
-            const result = await this.systemLogService.getSelectedEvents(req.query.ids);
-            this.sendCSVResponse(res, result, 'selected_logs.csv');
-        } catch (error) {
-
-        }
+        const result = await this.systemLogService.getSelectedEvents(req.query.ids);
+        this.sendCSVResponse(res, result, 'selected_logs.csv');
     }
 
     async exportAllCSV(req: Request, res: Response): Promise<void> {
-        try {
-            const result = await this.systemLogService.getAllCSV();
-            this.sendCSVResponse(res, result, 'all_logs.csv');
-        } catch (error) {
+        const result = await this.systemLogService.getAllCSV();
+        this.sendCSVResponse(res, result, 'all_logs.csv');
 
-        }
     }
 
     async getAllEventTypes(req: Request, res: Response): Promise<void> {
-        try {
-            const result = await this.systemLogService.getAllEventTypeOption();
-            res.status(200).json(result);
-        } catch (error) {
-        }
+        const result = await this.systemLogService.getAllEventTypeOption();
+        res.status(200).json(result);
     }
-
-
 
     private sendCSVResponse(res: Response, csvData: any, filename: string): void {
         const csv = csvData.headers + '\n' + csvData.rows;
