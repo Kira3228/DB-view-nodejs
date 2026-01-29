@@ -3,4 +3,5 @@ export class ActiveFileDtoFilter {
     limit?: number
     search?: string
     isArchived?: `archived`
+    presetName?: string
 }

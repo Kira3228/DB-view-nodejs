@@ -80,7 +80,7 @@ export class ActiveFilesService {
 
             const [files, filesCount] = await query.getManyAndCount()
 
-            const headers = await this.getHeaders()
+            const headers = await this.getHeaders(dto.presetName)
 
             return {
                 headers,

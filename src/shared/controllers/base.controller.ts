@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { SystemLogService } from "../../system-log/system-log.service";
 import { ActiveFilesService } from "../../active-file/active-file.service";
+import { log } from "console";
 
 type CommonService = SystemLogService | ActiveFilesService
 
