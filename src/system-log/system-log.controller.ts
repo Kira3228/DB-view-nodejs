@@ -1,10 +1,10 @@
 import { Request, Response, Router } from "express";
 import { SystemLogService } from './system-log.service';
-import { SystemLogFilters } from "./interfaces/system-log.interface";
 import { validate } from "../middleware/validate";
-import { filteredSystemLogQueryRules, selectedLogsQueryRules } from "./system-log.validator";
+import { selectedLogsQueryRules } from "./system-log.validator";
 import { asyncHandler } from "../shared/utils/async-handler";
 import { BaseController } from "../shared/controllers/base.controller";
+import { SystemEventDto } from "./dto/system-event.dto";
 
 export class SystemLogController extends BaseController {
     private readonly router: Router;
@@ -20,13 +20,13 @@ export class SystemLogController extends BaseController {
     private initializeRoutes(): void {
         this.router.get('/', asyncHandler(this.getAllSystemLogs.bind(this)));
         this.router.get('/headers', asyncHandler(this.getHeaders.bind(this)));
-        this.router.get('/search', validate(filteredSystemLogQueryRules), asyncHandler(this.getFilteredSystemLog.bind(this)));
         this.router.get('/export.csv', validate(selectedLogsQueryRules), asyncHandler(this.getSelectedLogs.bind(this)));
         this.router.get('/export/all', asyncHandler(this.exportAllCSV.bind(this)));
         this.router.get('/options', asyncHandler(this.getAllEventTypes.bind(this)));
         this.router.get('/presets', asyncHandler(this.getPresetNames.bind(this)));
         this.router.get('/filters', asyncHandler(this.getFilters.bind(this)));
         this.router.get('/exceptions', asyncHandler(this.getExceptions.bind(this)));
+        this.router.get('/types', this.getSystemEventsTypes.bind(this))
     }
 
     async getHeaders(req: Request, res: Response): Promise<void> {
@@ -45,102 +45,34 @@ export class SystemLogController extends BaseController {
         await this.handleGetExceptions(req, res, this.systemLogService);
     }
 
-    async getAllSystemLogs(req: Request, res: Response): Promise<void> {
-        try {
-            const result = await this.systemLogService.getSystemEvents();
-            res.status(200).json(result);
-        } catch (error) {
-
-        }
+    async getAllSystemLogs(req: Request<any, any, any, SystemEventDto>, res: Response): Promise<void> {
+        const result = await this.systemLogService.getSystemEvents(req.query);
+        res.status(200).json(result);
     }
 
-    async getFilteredSystemLog(req: Request, res: Response): Promise<void> {
-        try {
-            const filters: SystemLogFilters = this.parseSystemLogFilters(req.query);
-            const result = await this.systemLogService.getFilteredSystemEvents(filters);
-            res.status(200).json(result);
-        } catch (error) {
-        }
+    async getSystemEventsTypes(req: Request, res: Response) {
+        const result = await this.systemLogService.getSystemEventsTypes()
+        res.status(200).json(result)
     }
 
-    async getSelectedLogs(req: Request, res: Response): Promise<void> {
-        try {
-            const ids = this.parseIdsParam(req.query.ids);
-            if (!ids || ids.length === 0) {
-                res.status(400).json({
-                    status: 400,
-                    code: "INVALID_PARAMS",
-                    message: "Не указаны ID событий для экспорта"
-                });
-                return;
-            }
-
-            const result = await this.systemLogService.getSelectedEvents(ids);
-            this.sendCSVResponse(res, result, 'selected_logs.csv');
-        } catch (error) {
-
-        }
+    async getSelectedLogs(req: Request<any, any, any, { ids: number[] }>, res: Response): Promise<void> {
+        const result = await this.systemLogService.getSelectedEvents(req.query.ids);
+        this.sendCSVResponse(res, result, 'selected_logs.csv');
     }
 
     async exportAllCSV(req: Request, res: Response): Promise<void> {
-        try {
-            const result = await this.systemLogService.getAllCSV();
-            this.sendCSVResponse(res, result, 'all_logs.csv');
-        } catch (error) {
+        const result = await this.systemLogService.getAllCSV();
+        this.sendCSVResponse(res, result, 'all_logs.csv');
 
-        }
     }
 
     async getAllEventTypes(req: Request, res: Response): Promise<void> {
-        try {
-            const result = await this.systemLogService.getAllEventTypeOption();
-            res.status(200).json(result);
-        } catch (error) {
-        }
-    }
-
-    private parseSystemLogFilters(query: any): SystemLogFilters {
-        const { page, limit } = this.parsePaginationParams(query);
-
-        return {
-            page,
-            limit,
-            presetName: query.presetName as string,
-            eventType: query.eventType as string,
-            status: query.status as string,
-            filePath: query.filePath as string,
-            fileSystemId: query.fileSystemId as string,
-            startDate: query.startDate as string,
-            endDate: query.endDate as string,
-            relatedFileId: query.relatedFileId ? {
-                status: query.relatedFileId.status as string,
-                filePath: query.relatedFileId.filePath as string,
-                fileSystemId: query.relatedFileId.fileSystemId as string
-            } : undefined
-        };
-    }
-
-    private parseIdsParam(idsParam: any): number[] | undefined {
-        if (!idsParam) return undefined;
-
-        if (typeof idsParam === 'string') {
-            return idsParam.split(',')
-                .map(id => parseInt(id.trim()))
-                .filter(id => !isNaN(id) && id > 0);
-        }
-
-        if (Array.isArray(idsParam)) {
-            return idsParam
-                .map(id => parseInt(String(id).trim()))
-                .filter(id => !isNaN(id) && id > 0);
-        }
-
-        return undefined;
+        const result = await this.systemLogService.getAllEventTypeOption();
+        res.status(200).json(result);
     }
 
     private sendCSVResponse(res: Response, csvData: any, filename: string): void {
         const csv = csvData.headers + '\n' + csvData.rows;
-
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.send(csv);

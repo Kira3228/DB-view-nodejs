@@ -32,28 +32,6 @@ export const listActiveFilesQueryRules = [
     .withMessage(`processPathException должен быть строкой`)
     .customSanitizer(v => String(v).split(`;`).map((s: string) => s.trim()).filter(Boolean)),
 ]
-export const graphQueryRules = [
-  query(`filePath`)
-    .optional({ checkFalsy: true })
-    .isString()
-    .withMessage(`filePath должен быть строкой`)
-    .trim(),
-  query(`inode`)
-    .optional({ checkFalsy: true })
-    .isInt()
-    .withMessage(`inode должен быть числом`)
-    .toInt(),
-  query(`filePathException`)
-    .optional({ checkFalsy: true })
-    .isString()
-    .withMessage(`filePathException должен быть строкой`)
-    .customSanitizer(v => String(v).split(`;`).map((s: string) => s.trim()).filter(Boolean)),
-  query(`processPathException`)
-    .optional({ checkFalsy: true })
-    .isString()
-    .withMessage(`processPathException должен быть строкой`)
-    .customSanitizer(v => String(v).split(`;`).map((s: string) => s.trim()).filter(Boolean)),
-]
 
 export const updateStatusRules = [
   param(`id`).isInt({ min: 1 }).withMessage(`id должно быть больше 1`).toInt(),

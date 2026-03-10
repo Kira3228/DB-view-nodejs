@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { SystemLogService } from "../../system-log/system-log.service";
 import { ActiveFilesService } from "../../active-file/active-file.service";
+import { log } from "console";
 
 type CommonService = SystemLogService | ActiveFilesService
 
@@ -47,10 +48,5 @@ export abstract class BaseController {
     catch (error) {
       console.error(error);
     }
-  }
-  protected parsePaginationParams(query: any): { page: number; limit: number } {
-    const page = Math.max(1, parseInt(query.page) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 30));
-    return { page, limit };
   }
 }

@@ -16,7 +16,7 @@ import cors from 'cors'
 import { ReportController } from "./reports/reports.controller";
 import { validate } from "./middleware/validate";
 import { errorHandler } from "./middleware/error-handler";
-import { FileChainsView } from "./entities/FileChainsView";
+import { FileChainView } from './entities/ViewFileChains'
 
 EventEmitter.defaultMaxListeners = 15;
 
@@ -35,7 +35,7 @@ async function bootstrap() {
             FileRelationship,
             FileOrigin,
             FileAccessEvent,
-            FileChainsView
+            FileChainView,
         ],
     });
 

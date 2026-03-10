@@ -3,14 +3,6 @@ export interface PaginationParams {
   limit?: number
 }
 
-export interface PaginatedResult<T> {
-  [key: string]: T[] | number;
-  page: number
-  totalPages: number;
-  totalCount: number;
-  limit: number
-}
-
 export interface IConfig {
   table_id: string
   default_preset: string

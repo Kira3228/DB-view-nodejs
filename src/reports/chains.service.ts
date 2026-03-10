@@ -1,4 +1,4 @@
-import { Between, getRepository } from "typeorm";
+import { getRepository } from "typeorm";
 import { MonitoredFile } from "../entities/monitored_file.entity";
 import { FileRelationship } from "../entities/file_relationships.entity";
 import { TChains } from "./report.types";
@@ -7,65 +7,77 @@ export class ChainsService {
   private filesRepo = getRepository(MonitoredFile)
   private relationRepo = getRepository(FileRelationship)
 
-  public async getChains(startDate: string, endDate: string, minDepth: number, maxDepth: number) {
-    const files = await this.filesRepo.find({
-      where: {
-        createdAt: Between(startDate, endDate)
-      }
-    })
-    const rels = await this.relationRepo.find()
-    const fileMap = new Map<number, MonitoredFile>();
-    const childrenMap = new Map<number, number[]>()
-    const chains: TChains[] = []
-    const visitedGlobal = new Set<number>();
+  async getChains(startDate?: string, endDate?: string) {
+    const query = this
+      .filesRepo
+      .createQueryBuilder(`files`)
 
-    files.map((file) => { fileMap.set(file.id, file) })
+    if (startDate && endDate) {
+      query.andWhere(`files.createdAt BETWEEN :startDate AND :endDate`, {
+        startDate: startDate,
+        endDate: endDate
+      })
+    }
+    const files = await query.getMany()
+
+    const fileMap = new Map<number, MonitoredFile>();
+
+    files.forEach((file) => fileMap.set(file.id, file))
+
+    const rels = await this.relationRepo.find()
+
+    const childrenMap = new Map<number, number[]>()
 
     rels.forEach(rel => {
       const parent = rel.parentFileId
       const child = rel.childFileId
-      if (!childrenMap.has(parent)) {
-        childrenMap.set(parent, []);
+      if (fileMap.has(child)) {
+        if (!childrenMap.has(parent)) {
+          childrenMap.set(parent, [])
+        }
+        childrenMap.get(parent)?.push(child);
+
       }
-      childrenMap.get(parent)?.push(child)
     });
 
-    const originalFiles = await this.filesRepo.find({
-      where: { isOriginalMarked: true }
-    })
+    const originalFiles = files.filter(f => f.isOriginalMarked)
+    const chains: TChains[] = []
 
-    for (const origin of originalFiles) {
-      const originalId = origin.id
+    const dfs = (currentId: number, currentPathIds: number[]) => {
+      const currentFile = fileMap.get(currentId)
+      if (!currentFile) return
 
-      const dfs = (currentId: number, path: number[], depth: number) => {
-        if (visitedGlobal.has(currentId)) {
-          return
-        }
-        visitedGlobal.add(currentId)
+      const children = childrenMap.get(currentId) || []
 
-        const currentFile = fileMap.get(currentId)
+      if (children.length === 0) {
+        const pathChainStrings = currentPathIds
+          .map(id => fileMap.get(id)?.filePath)
+          .filter((path): path is string => !!path)
 
-        if (!currentFile) {
-          return
-        }
-        const chainPath = path.map(id => fileMap.get(id)?.filePath || `unknown`);
-        if (depth >= minDepth && depth <= maxDepth) {
+        const ancestorId = currentPathIds[0];
+        const ancestor = fileMap.get(ancestorId);
+        if (ancestor) {
           chains.push({
-            ancestorId: origin.id,
-            ancestorPath: origin.filePath,
-            pathChain: [...chainPath],
-            chainDepth: depth,
-            createdAt: currentFile.createdAt.toISOString().replace('.000Z', '').replace(`T`, ' '),
+            ancestorId: ancestor.id,
+            ancestorPath: ancestor.filePath,
+            pathChain: pathChainStrings,
+            chainDepth: currentPathIds.length - 1,
+            createdAt: currentFile.createdAt.toISOString().replace('.000Z', '').replace('T', ' '),
           });
         }
-        const children = childrenMap.get(currentId) || [];
-        for (const childId of children) {
-          dfs(childId, [...path, childId], depth + 1);
-        }
-      };
+        return;
 
-      dfs(originalId, [originalId], 0);
+      }
+      for (const childId of children) {
+        if (!currentPathIds.includes(childId)) {
+          dfs(childId, [...currentPathIds, childId]);
+        }
+      }
     }
-    return chains
+
+    for (const origin of originalFiles) {
+      dfs(origin.id, [origin.id]);
+    }
+    return chains;
   }
 }

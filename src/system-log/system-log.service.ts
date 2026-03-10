@@ -2,11 +2,10 @@ import { getRepository, In, Repository, SelectQueryBuilder } from "typeorm";
 import { SystemEvent } from "../entities/system_events.entity";
 import { NotFoundError } from "../errors/http-errors";
 import { SystemLogConfigService } from "./system-log-config.service";
-import { CSVExport, SystemLogFilters } from "./interfaces/system-log.interface";
-import { applyNotLikeList } from "../shared/utils/query-utils";
-import { IException, PaginatedResult } from "../shared/interfaces/common.interface";
-import { paginate } from "../shared/utils/pagination";
-
+import { CSVExport } from "./interfaces/system-log.interface";
+import { IException, IHeader, } from "../shared/interfaces/common.interface";
+import { log } from "console";
+import { SystemEventDto } from "./dto/system-event.dto";
 
 export class SystemLogService {
     private readonly systemLogRepo: Repository<SystemEvent>
@@ -17,8 +16,7 @@ export class SystemLogService {
         this.configService = new SystemLogConfigService()
     }
 
-
-    async getHeaders(presetName?: string): Promise<any> {
+    async getHeaders(presetName?: string): Promise<IHeader[]> {
         return this.configService.getHeaders(presetName)
     }
 
@@ -40,30 +38,82 @@ export class SystemLogService {
         }
     }
 
-    async getSystemEvents(): Promise<SystemEvent[]> {
+    async getSystemEventsTypes() {
         try {
-            const qb = this.createBaseQuery()
-                .leftJoinAndSelect("event.relatedProcessId.user", "user")
-                .addSelect(["user.id", "user.userName"]);
+            const result = await this.systemLogRepo
+                .createQueryBuilder(`log`)
+                .select("DISTINCT log.eventType", `eventType`)
+                .getRawMany()
 
-            const events = await qb.getMany();
-
-            if (!events || events.length === 0) {
-                throw new NotFoundError('События не найдены');
-            }
-            return events;
+            return result.map(item => item.eventType).filter(Boolean);
         }
-        catch { }
+        catch (error) {
+            console.error(error);
+            return [];
+        }
     }
-    async getFilteredSystemEvents(filters: SystemLogFilters): Promise<PaginatedResult<SystemEvent>> {
-        try {
-            const qb = this.createBaseQuery();
-            this.applyAllFilters(qb, filters);
 
-            return await this.paginateQuery(qb, filters);
-        } catch (error) {
-            console.error('Ошибка получения отфильтрованных событий:', error);
-            throw new Error('Не удалось получить отфильтрованные события');
+    async getSystemEvents(dto: SystemEventDto) {
+        try {
+            const headers = await this.getHeaders(dto.presetName)
+            if (!headers || headers.length === 0) {
+                throw new NotFoundError('Заголовки не найдены');
+            }
+
+            const qb = await this.createBaseQuery()
+            const skip = (Number(dto.page) - 1) * dto.limit
+
+            if (dto.fileSystemId?.trim()) {
+                qb.andWhere(
+                    'file.fileSystemId LIKE :relatedFileSystemId',
+                    { relatedFileSystemId: `%${dto.fileSystemId.trim()}%` }
+                );
+            }
+
+            if (dto.eventType) {
+                qb.andWhere(`event.eventType = :eventType`, { eventType: dto.eventType.trim() })
+            }
+
+            if (dto.status?.trim()) {
+                qb.andWhere(`file.status = :status`, { status: dto.status })
+            }
+
+            if (dto.filePath?.trim()) {
+                qb.andWhere('file.filePath LIKE :relatedFilePath', { relatedFilePath: `%${dto.filePath.trim()}%` });
+            }
+
+            if (dto.startDate && !dto.endDate) {
+                qb.andWhere(`event.timestamp >= :start`, {
+                    start: dto.startDate,
+                })
+            }
+
+            if (!dto.startDate && dto.endDate) {
+                qb.andWhere(`event.timestamp <= :end`, {
+                    end: dto.endDate,
+                })
+            }
+            if (dto.startDate && dto.endDate) {
+                qb.andWhere(`event.timestamp BETWEEN :start AND :end`, {
+                    start: dto.startDate,
+                    end: dto.endDate,
+                })
+            }
+
+            const [events, totalCount] = await qb
+                .skip(skip)
+                .take(dto.limit)
+                .getManyAndCount()
+
+            return {
+                headers,
+                events: events,
+                totalCount,
+                totalPage: dto.limit > 0 ? Math.ceil(totalCount / dto.limit) : 0,
+            };
+        }
+        catch (error) {
+            log(error)
         }
     }
 
@@ -81,7 +131,7 @@ export class SystemLogService {
                 throw new NotFoundError('События не найдены');
             }
 
-            return this.exportToCSV(events);
+            return this.csvGenerator(events);
         } catch (error) {
             console.error('Ошибка получения выбранных событий:', error);
             throw error;
@@ -110,13 +160,12 @@ export class SystemLogService {
                 throw new NotFoundError('События для экспорта не найдены');
             }
 
-            return this.exportToCSV(events);
+            return this.csvGenerator(events);
         } catch (error) {
             console.error('Ошибка экспорта всех событий:', error);
             throw error;
         }
     }
-
 
     private createBaseQuery(): SelectQueryBuilder<SystemEvent> {
         return this.systemLogRepo
@@ -140,111 +189,11 @@ export class SystemLogService {
             ])
     }
 
-    private applyAllFilters(qb: SelectQueryBuilder<SystemEvent>, filters: SystemLogFilters): void {
-        this.applyPresetExceptions(qb, filters.presetName);
-        this.applyEventTypeFilter(qb, filters);
-        this.applyDateFilters(qb, filters);
-        this.applyFileFilters(qb, filters);
-        this.applyRelatedFileFilters(qb, filters);
-    }
-
-    private applyPresetExceptions(qb: SelectQueryBuilder<SystemEvent>, presetName?: string): void {
-        if (!presetName) return
-
-        try {
-            const filePathExceptions = this.configService.getFieldExceptions(presetName, `filePath`)
-            if (filePathExceptions.length > 0) {
-                applyNotLikeList(qb, 'file', 'filePath', filePathExceptions, 'both', true);
-            }
-
-            const processPathExceptions = this.configService
-                .getFieldExceptions(presetName, `relatedProcessId`)
-            if (processPathExceptions.length > 0) {
-                applyNotLikeList(qb, `process`, `executablePath`, processPathExceptions, "both", true)
-            }
-        }
-        catch (error) {
-            console.error(error);
-        }
-    }
-
-    private applyEventTypeFilter(qb: SelectQueryBuilder<SystemEvent>, filters: SystemLogFilters): void {
-        if (filters.eventType?.trim()) {
-            qb.andWhere(`event.eventType = :eventType`, { eventType: filters.eventType.trim() })
-        }
-    }
-
-    private applyDateFilters(qb: SelectQueryBuilder<SystemEvent>, filters: SystemLogFilters): void {
-        const normalizedDate = (dateStr?: string): string | undefined => {
-            if (!dateStr) return undefined
-
-            const d = new Date(dateStr)
-            if (isNaN(d.getTime())) return undefined
-
-            return d.toISOString().replace(`T`, ` `).slice(0, 19)
-        }
-
-        const startDate = normalizedDate(filters.startDate)
-        const endDate = normalizedDate(filters.endDate)
-
-        if (startDate && endDate) {
-            qb.andWhere(`event.timestamp BETWEEN :startDate AND :endDate`, { startDate, endDate })
-        }
-        else {
-            if (startDate) {
-                qb.andWhere(`event.timestamp >= :startDate`, { startDate })
-            }
-            if (endDate) {
-                qb.andWhere(`event.timestamp <= :endDate`, { endDate })
-            }
-        }
-
-    }
-
-    private applyFileFilters(qb: SelectQueryBuilder<SystemEvent>, filters: SystemLogFilters): void {
-        if (filters.status?.trim()) {
-            qb.andWhere(`file.status = :status`, { status: filters.status?.trim() })
-        }
-
-        if (filters.filePath?.trim()) {
-            qb.andWhere('file.filePath LIKE :filePath', { filePath: `%${filters.filePath.trim()}%` });
-        }
-        if (filters.fileSystemId?.trim()) {
-            qb.andWhere('file.fileSystemId = :fileSystemId',
-                { fileSystemId: filters.fileSystemId.trim() });
-        }
-    }
-
-    private applyRelatedFileFilters(qb: SelectQueryBuilder<SystemEvent>, filters: SystemLogFilters): void {
-        const relatedFile = filters.relatedFileId
-        if (!relatedFile) return
-
-        if (relatedFile.status?.trim()) {
-            qb.andWhere(`file.status = :fileStatus`, { fileStatus: relatedFile.status.trim() })
-        }
-        if (relatedFile.filePath?.trim()) {
-            qb.andWhere('file.filePath LIKE :relatedFilePath', { relatedFilePath: `%${relatedFile.filePath.trim()}%` });
-        }
-
-        if (relatedFile.fileSystemId?.trim()) {
-            qb.andWhere('file.fileSystemId = :relatedFileSystemId', { relatedFileSystemId: relatedFile.fileSystemId.trim() });
-        }
-    }
-
-    private async paginateQuery(qb: SelectQueryBuilder<SystemEvent>,
-        filters: SystemLogFilters
-    ): Promise<PaginatedResult<SystemEvent>> {
-        const page = Math.max(1, filters.page || 1)
-        const limit = Math.min(100, Math.max(1, filters.limit || 30))
-
-        return await paginate(qb, page, limit, `events`)
-    }
-
-    private exportToCSV(data: SystemEvent[]): CSVExport {
+    private csvGenerator(data: SystemEvent[]): CSVExport {
         if (!data || data.length === 0) {
             return { data: [], headers: ``, rows: '' }
-        }
 
+        }
         const headers = Object.keys(data[0]).join(`,`)
         const rows = data
             .map(row => {
