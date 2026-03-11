@@ -1,54 +1,41 @@
 import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
-import { User } from './user.entity';
-import { ProcessVersion } from './process_version.entity';
-import { SystemEvent } from './system_events.entity';
+  Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn,
+} from "typeorm";
+import { OSUser } from "./os-user.entity";
 
-@Entity('processes')
+@Entity("processes")
+@Index("idx_processes_pid_exit", ["pid", "process_exit_time"])
 export class Process {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'integer' })
+  @Column()
   pid: number;
 
-  @Column({ name: 'executable_path', type: 'text' })
-  executablePath: string;
+  @Column()
+  executable_path: string;
 
-  @Column({ name: 'command_line', type: 'text', nullable: true })
-  commandLine: string;
+  @Column({ type: "text", nullable: true })
+  arguments: string;
 
-  @Column({ name: 'parent_pid', type: 'integer', nullable: true })
-  parentPid: number | null;
+  @Column()
+  parent_pid: number;
 
-  @Column({ name: 'group_id', type: 'integer' })
-  groupId: number;
+  @ManyToOne(() => OSUser, (user) => user.processes)
+  @JoinColumn({ name: "os_user_id" })
+  osUser: OSUser;
 
-  @Column({
-    name: 'created_at',
-    type: 'datetime',
-    default: () => 'CURRENT_TIMESTAMP',
-  })
-  createdAt: Date;
+  // убираем @Column() os_user_id
 
-  @Column({ name: 'process_start_time', type: 'datetime' })
-  processStartTime: Date;
+  @Column()
+  group_id: number;
 
-  @OneToMany(() => ProcessVersion, (versions) => versions.process)
-  versions: ProcessVersion[];
-  
-  @ManyToOne(() => User, (user) => { user.processes }, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'user_id' })
-  user: User;
+  @Column({ type: "text", nullable: true })
+  environment: string;
 
-  @OneToMany(() => SystemEvent, (event) => event.relatedProcessId)
-  systemEvents: SystemEvent[];
-}
+  @Column({ type: "datetime" })
+  process_start_time: Date;
+
+  @Column({ type: "datetime", nullable: true })
+  process_exit_time: Date;
+} 

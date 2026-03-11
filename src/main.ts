@@ -1,58 +1,65 @@
-import { createConnection } from "typeorm";
-import express from 'express';
+import { createConnection, getRepository } from "typeorm";
+import express, { Router } from 'express';
 import { EventEmitter } from 'events';
-import { User } from "./entities/user.entity";
-import { SystemEvent } from "./entities/system_events.entity";
-import { Process } from "./entities/process.entity";
-import { ProcessVersion } from "./entities/process_version.entity";
-import { ProcessFileRead } from "./entities/process_file_reads.entity";
-import { MonitoredFile } from "./entities/monitored_file.entity";
-import { FileRelationship } from "./entities/file_relationships.entity";
-import { FileOrigin } from "./entities/file_origins.entity";
-import { FileAccessEvent } from "./entities/file_access_events.entity";
-import { SystemLogController } from "./system-log/system-log.controller";
-import { ActiveFileController } from "./active-file/active-file.controller";
 import cors from 'cors'
-import { ReportController } from "./reports/reports.controller";
+import { container, InjectionToken } from 'tsyringe'
 import { validate } from "./middleware/validate";
 import { errorHandler } from "./middleware/error-handler";
-import { FileChainView } from './entities/ViewFileChains'
+import { File, FileRead, FileVersion, FileWrite, Filesystem, OSUser, Process, ProcessVersion, } from './entities'
+import { PREFIX_META, ROUTE_META, RouteInfo } from "./shared/utils/routing";
+import { FileReadRepositoryToken, FileReadService, FileReadServiceToken, FileRepositoryToken, FileVersionRepositoryToken, FileWriteRepositoryToken } from "./File/file.service";
+import { FileController } from "./File/file.controller";
 
 EventEmitter.defaultMaxListeners = 15;
+
+export const RouterToken: InjectionToken<Router> = "RouterToken"
 
 async function bootstrap() {
     const connection = await createConnection({
         type: `sqlite`,
         database: `pmovt.db`,
-        synchronize: false,
+        synchronize: true,
         entities: [
-            User,
-            SystemEvent,
-            Process,
-            ProcessVersion,
-            ProcessFileRead,
-            MonitoredFile,
-            FileRelationship,
-            FileOrigin,
-            FileAccessEvent,
-            FileChainView,
+            File,
+            FileRead,
+            FileVersion,
+            FileWrite,
+            Filesystem,
+            OSUser,
+            Process, ProcessVersion
+
         ],
     });
-
-    const systemLogController = new SystemLogController();
-    const activeFileController = new ActiveFileController()
-    const reportController = new ReportController();
-
     const app = express();
     const PORT = 3000;
-
     app.use(express.json());
     app.use(cors())
     app.use(validate([]))
-    app.use('/api/logs', systemLogController.getRouter());
-    app.use('/api/files', activeFileController.getRouter())
-    app.use(`/api/reports`, reportController.getRouter())
     app.use(errorHandler)
+
+    container.register(RouterToken, { useValue: Router() })
+
+    container.register(FileReadRepositoryToken, { useValue: getRepository(FileRead) });
+    container.register(FileWriteRepositoryToken, { useValue: getRepository(FileWrite) });
+    container.register(FileRepositoryToken, { useValue: getRepository(File) });
+    container.register(FileVersionRepositoryToken, { useValue: getRepository(FileVersion) });
+
+    container.register(FileReadServiceToken, { useClass: FileReadService })
+    const controllers: { new(...args: any[]): any }[] = [FileController]
+
+    for (const ControllerClass of controllers) {
+        const prefix = Reflect.getMetadata(PREFIX_META, ControllerClass) || '';
+        const instance = container.resolve(ControllerClass);
+        const routes: RouteInfo[] = Reflect.getMetadata(ROUTE_META, ControllerClass) || [];
+
+        const router = Router();
+        for (const route of routes) {
+            const handler = (instance as any)[route.handler].bind(instance);
+            (router as any)[route.method](route.path, handler);
+        }
+        app.use(prefix, router);
+    }
+
     app.listen(PORT, () => {
         console.log(`Server is running on http://localhost:${PORT}`);
     });

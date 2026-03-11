@@ -4,3 +4,4 @@ dist/
 package-lock.json
 pmovt.db-shm
 pmovt.db-wal
+pmovt.db
