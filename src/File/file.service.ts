@@ -6,6 +6,7 @@ import {
   FileRead,
   FileWrite,
 } from "../entities";
+import { FileReadDto } from "./dto/file-read.dto";
 
 
 export const FileReadServiceToken: InjectionToken<FileReadService> =
@@ -142,9 +143,6 @@ export class FileReadService {
       .leftJoinAndSelect("pv.originFile", "pv_of")
       .leftJoinAndSelect("pv_of.filesystem", "pv_of_fs");
 
-
-    console.log(qb.getSql());
-
     if (filter.fileId !== undefined) {
       qb.andWhere("fr.file_id = :fileId", { fileId: filter.fileId });
     }
@@ -163,59 +161,72 @@ export class FileReadService {
       qb.andWhere("fr.first_at <= :to", { to: filter.to });
     }
 
-    qb.orderBy("fr.first_at", "DESC");
-
-    return qb.getMany();
+    const rows = await qb.getMany();
+    return rows.map(r => this.mapFileRead(r));
   }
 
-  async debug(fileId: number, processVersionId: number) {
-    // Проверяем что лежит в БД по FK
-    const manager = this.fileRepo.manager;
-    return manager.query(`
-    SELECT
-      f.filesystem_id,
-      pv.process_id,
-      pv.origin_file_id,
-      p.os_user_id
-    FROM file_reads fr
-    LEFT JOIN files f ON f.id = fr.file_id
-    LEFT JOIN process_versions pv ON pv.id = fr.process_version_id
-    LEFT JOIN processes p ON p.id = pv.process_id
-    WHERE fr.file_id = ? AND fr.process_version_id = ?
-  `, [fileId, processVersionId]);
+  private mapFileRead(row: FileRead) {
+    return {
+      fileId: row.file.id,
+      filePath: row.file.full_path,
+      fileVersion: row.fileVersion.version_number,
+      process: row.processVersion.process.executable_path,
+      processVersion: row.processVersion.version_number,
+      user: row.processVersion.process.osUser.username,
+      firstAt: row.first_at,
+      lastAt: row.last_at
+    }
   }
 
-  async debugSchema() {
-    const manager = this.fileRepo.manager;
+  private mapFileRead1(r: FileRead): FileReadDto {
+    return {
+      fileId: r.file_id,
+      processVersionId: r.process_version_id,
+      firstAt: r.first_at,
+      lastAt: r.last_at,
+      count: r.count,
 
-    const pvCols = await manager.query(`PRAGMA table_info(process_versions)`);
-    const procCols = await manager.query(`PRAGMA table_info(processes)`);
-    const filesCols = await manager.query(`PRAGMA table_info(files)`);
+      file: r.file ? {
+        id: r.file.id,
+        fullPath: r.file.full_path,
+        initialSizeBytes: r.file.initial_size_bytes,
+        birthTime: r.file.birth_time,
+        trackingStartedAt: r.file.tracking_started_at,
+        deletedAt: r.file.deleted_at,
+        filesystem: r.file.filesystem ? {
+          id: r.file.filesystem.id,
+          uuid: r.file.filesystem.uuid,
+        } : null,
+      } : null,
 
-    return { process_versions: pvCols, processes: procCols, files: filesCols };
+      fileVersion: r.fileVersion ? {
+        id: r.fileVersion.id,
+        versionNumber: r.fileVersion.version_number,
+        depth: r.fileVersion.depth,
+      } : null,
+
+      processVersion: r.processVersion ? {
+        id: r.processVersion.id,
+        versionNumber: r.processVersion.version_number,
+        workingDirectory: r.processVersion.working_directory,
+        process: r.processVersion.process ? {
+          id: r.processVersion.process.id,
+          pid: r.processVersion.process.pid,
+          executablePath: r.processVersion.process.executable_path,
+          arguments: r.processVersion.process.arguments,
+          osUser: r.processVersion.process.osUser ? {
+            uid: r.processVersion.process.osUser.uid,
+            username: r.processVersion.process.osUser.username,
+          } : null,
+        } : null,
+        originFile: r.processVersion.originFile ? {
+          id: r.processVersion.originFile.id,
+          fullPath: r.processVersion.originFile.full_path,
+        } : null,
+      } : null,
+    };
   }
 
-  async debugInsert() {
-    const manager = this.fileRepo.manager;
-
-    // Пишем одну запись напрямую
-    await manager.query(
-      `UPDATE files SET filesystem_id = 1 WHERE id = 1`
-    );
-    await manager.query(
-      `UPDATE processes SET os_user_id = 1 WHERE id = 1`
-    );
-    await manager.query(
-      `UPDATE process_versions SET process_id = 1, origin_file_id = 1 WHERE id = 1`
-    );
-
-    // Проверяем
-    return manager.query(`
-    SELECT f.id, f.filesystem_id, p.os_user_id, pv.process_id, pv.origin_file_id
-    FROM files f, processes p, process_versions pv
-    WHERE f.id = 1 AND p.id = 1 AND pv.id = 1
-  `);
-  }
 
   async getFileReadByPk(fileId: number, processVersionId: number) {
     return this.fileReadRepo
@@ -492,33 +503,5 @@ export class FileReadService {
     }
   }
 
-  private async batchUpdate(manager: any, sql: string, data: any[], size = 500) {
-    for (let i = 0; i < data.length; i += size) {
-      const chunk = data.slice(i, i + size);
-      for (const row of chunk) {
-        await manager.query(sql, row);
-      }
-    }
-  }
 
-  private async batchInsert(manager: any, table: string, data: any[], size = 500) {
-    for (let i = 0; i < data.length; i += size) {
-      const chunk = data.slice(i, i + size);
-      for (const row of chunk) {
-        const keys = Object.keys(row);
-        const cols = keys.join(", ");
-        const params = keys.map(() => `?`).join(", ");
-        const vals = keys.map(k => {
-          const v = row[k];
-          if (v instanceof Buffer) return v;
-          if (v instanceof Date) return v.toISOString();
-          return v;
-        });
-        await manager.query(
-          `INSERT OR IGNORE INTO ${table} (${cols}) VALUES (${params})`,
-          vals,
-        );
-      }
-    }
-  }
 }

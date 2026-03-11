@@ -89,28 +89,6 @@ export class FileController {
     res.status(200).json(result);
   }
 
-  @Get(`/debug/:fileId/:processVersionId`)
-  async debug(req: Request, res: Response) {
-    const result = await this.fileReadService.debug(
-      Number(req.params.fileId),
-      Number(req.params.processVersionId),
-    );
-    res.status(200).json(result);
-  }
-
-  @Get(`/debug`)
-  async debugSchema(req: Request, res: Response) {
-    const result = await this.fileReadService.debugSchema(
-    );
-    res.status(200).json(result);
-  }
-  @Get(`/debug/insert`)
-  async debugInsert(req: Request, res: Response) {
-    const result = await this.fileReadService.debugInsert(
-    );
-    res.status(200).json(result);
-  }
-
   @Get(`/writes/:fileId/:processVersionId`)
   async getWriteByPk(req: Request, res: Response) {
     const result = await this.fileReadService.getFileWriteByPk(

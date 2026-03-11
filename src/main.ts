@@ -17,8 +17,8 @@ export const RouterToken: InjectionToken<Router> = "RouterToken"
 async function bootstrap() {
     const connection = await createConnection({
         type: `sqlite`,
-        database: `pmovt.db`,
-        synchronize: true,
+        database: `filemon.db`,
+        synchronize: false,
         entities: [
             File,
             FileRead,
