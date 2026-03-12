@@ -18,7 +18,7 @@ async function bootstrap() {
     const connection = await createConnection({
         type: `sqlite`,
         database: `filemon.db`,
-        synchronize: false,
+        synchronize: true,
         entities: [
             File,
             FileRead,
@@ -26,7 +26,8 @@ async function bootstrap() {
             FileWrite,
             Filesystem,
             OSUser,
-            Process, ProcessVersion
+            Process,
+            ProcessVersion
 
         ],
     });

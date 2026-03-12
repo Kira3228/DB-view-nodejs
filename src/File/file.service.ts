@@ -5,6 +5,7 @@ import {
   FileVersion,
   FileRead,
   FileWrite,
+  ProcessVersion,
 } from "../entities";
 import { FileReadDto } from "./dto/file-read.dto";
 
@@ -146,36 +147,75 @@ export class FileReadService {
     if (filter.fileId !== undefined) {
       qb.andWhere("fr.file_id = :fileId", { fileId: filter.fileId });
     }
-
     if (filter.processVersionId !== undefined) {
-      qb.andWhere("fr.process_version_id = :pvId", {
-        pvId: filter.processVersionId,
-      });
+      qb.andWhere("fr.process_version_id = :pvId", { pvId: filter.processVersionId });
     }
-
     if (filter.from !== undefined) {
       qb.andWhere("fr.first_at >= :from", { from: filter.from });
     }
-
     if (filter.to !== undefined) {
       qb.andWhere("fr.first_at <= :to", { to: filter.to });
     }
 
-    const rows = await qb.getMany();
-    return rows.map(r => this.mapFileRead(r));
+    const wQb = this.fileWriteRepo
+      .createQueryBuilder("fw")
+      .leftJoinAndSelect("fw.file", "f")
+      .leftJoinAndSelect("f.filesystem", "f_fs")
+      .leftJoinAndSelect("f.originProcessVersion", "f_opv")
+      .leftJoinAndSelect("fw.fileVersion", "fv")
+      .leftJoinAndSelect("fw.processVersion", "pv")
+      .leftJoinAndSelect("pv.process", "p")
+      .leftJoinAndSelect("p.osUser", "u")
+      .leftJoinAndSelect("pv.originFile", "pv_of")
+      .leftJoinAndSelect("pv_of.filesystem", "pv_of_fs");
+
+    if (filter.fileId !== undefined) {
+      wQb.andWhere("fw.file_id = :fileId", { fileId: filter.fileId });
+    }
+    if (filter.processVersionId !== undefined) {
+      wQb.andWhere("fw.process_version_id = :pvId", { pvId: filter.processVersionId });
+    }
+    if (filter.from !== undefined) {
+      wQb.andWhere("fw.first_at >= :from", { from: filter.from });
+    }
+    if (filter.to !== undefined) {
+      wQb.andWhere("fw.first_at <= :to", { to: filter.to });
+    }
+
+    const [reads, writes] = await Promise.all([
+      qb.getMany(),
+      wQb.getMany(),
+    ]);
+
+    return [
+      ...reads.map(r => ({ type: "read" as const, ...this.mapFileRead(r) })),
+      ...writes.map(w => ({ type: "write" as const, ...this.mapFileRead(w as any) })),
+    ].sort((a, b) => new Date(b.firstAt).getTime() - new Date(a.firstAt).getTime());
   }
 
-  private mapFileRead(row: FileRead) {
+  private mapFileRead(row: FileRead | FileWrite) {
     return {
-      fileId: row.file.id,
-      filePath: row.file.full_path,
-      fileVersion: row.fileVersion.version_number,
-      process: row.processVersion.process.executable_path,
-      processVersion: row.processVersion.version_number,
-      user: row.processVersion.process.osUser.username,
+      fileId: row.file?.id ?? null,
+      filePath: row.file?.full_path ?? null,
+      fileVersion: row.fileVersion?.version_number ?? null,
+      processVersionId: row.processVersion?.id ?? null,
+      process: row.processVersion?.process?.executable_path
+        ?.split("/").pop() ?? null,
+      processVersion: row.processVersion?.version_number ?? null,
+      user: row.processVersion?.process?.osUser?.username ?? null,
+      uid: row.processVersion?.process?.osUser?.uid ?? null,
+      originFile: row.processVersion?.originFile?.full_path ?? null,
+      filesystem: row.file?.filesystem?.uuid ?? null,
+      depth: row.fileVersion?.depth ?? null,
       firstAt: row.first_at,
-      lastAt: row.last_at
-    }
+      lastAt: row.last_at ?? null,
+      count: row.count,
+      initialSizeBytes: row.file.initial_size_bytes,
+      trackingStartAt: row.file.tracking_started_at,
+      deletedAt: row.file.deleted_at,
+      iNode: row.file.inoGen
+
+    };
   }
 
   private mapFileRead1(r: FileRead): FileReadDto {

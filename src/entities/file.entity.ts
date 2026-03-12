@@ -24,6 +24,9 @@ export class File {
   @Column()
   full_path: string;
 
+  @Column()
+  inoGen: string
+
   @ManyToOne(() => ProcessVersion, { nullable: true })
   @JoinColumn({ name: "origin_process_version_id" })
   originProcessVersion: ProcessVersion;
