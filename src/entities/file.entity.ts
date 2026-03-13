@@ -24,6 +24,9 @@ export class File {
   @Column()
   full_path: string;
 
+  @Column({ nullable: true })
+  status: string
+
   @Column()
   inoGen: string
 

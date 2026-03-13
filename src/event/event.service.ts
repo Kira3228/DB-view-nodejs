@@ -5,25 +5,12 @@ import {
   FileVersion,
   FileRead,
   FileWrite,
-  ProcessVersion,
 } from "../entities";
-import { FileReadDto } from "./dto/file-read.dto";
+import { EventFilterDto } from "./dto/event-filter.dto";
+import { FileReadRepositoryToken, FileRepositoryToken, FileVersionRepositoryToken, FileWriteRepositoryToken } from "../constants/tokens";
 
 
-export const FileReadServiceToken: InjectionToken<FileReadService> =
-  "FileReadServiceToken";
 
-export const FileReadRepositoryToken: InjectionToken<Repository<FileRead>> =
-  "FileReadRepositoryToken";
-
-export const FileWriteRepositoryToken: InjectionToken<Repository<FileWrite>> =
-  "FileWriteRepositoryToken";
-
-export const FileRepositoryToken: InjectionToken<Repository<File>> =
-  "FileRepositoryToken";
-
-export const FileVersionRepositoryToken: InjectionToken<Repository<FileVersion>> =
-  "FileVersionRepositoryToken";
 
 
 export interface GetFilesFilter {
@@ -46,7 +33,7 @@ export interface GetOpsFilter {
 
 
 @injectable()
-export class FileReadService {
+export class EventService {
   constructor(
     @inject(FileReadRepositoryToken)
     private readonly fileReadRepo: Repository<FileRead>,
@@ -131,7 +118,7 @@ export class FileReadService {
       .getOne();
   }
 
-  async getFileRead(filter: GetOpsFilter = {}) {
+  async getEvents(filter: EventFilterDto) {
     const qb = this.fileReadRepo
       .createQueryBuilder("fr")
       .leftJoinAndSelect("fr.file", "f")
@@ -143,19 +130,6 @@ export class FileReadService {
       .leftJoinAndSelect("p.osUser", "u")
       .leftJoinAndSelect("pv.originFile", "pv_of")
       .leftJoinAndSelect("pv_of.filesystem", "pv_of_fs");
-
-    if (filter.fileId !== undefined) {
-      qb.andWhere("fr.file_id = :fileId", { fileId: filter.fileId });
-    }
-    if (filter.processVersionId !== undefined) {
-      qb.andWhere("fr.process_version_id = :pvId", { pvId: filter.processVersionId });
-    }
-    if (filter.from !== undefined) {
-      qb.andWhere("fr.first_at >= :from", { from: filter.from });
-    }
-    if (filter.to !== undefined) {
-      qb.andWhere("fr.first_at <= :to", { to: filter.to });
-    }
 
     const wQb = this.fileWriteRepo
       .createQueryBuilder("fw")
@@ -169,22 +143,24 @@ export class FileReadService {
       .leftJoinAndSelect("pv.originFile", "pv_of")
       .leftJoinAndSelect("pv_of.filesystem", "pv_of_fs");
 
-    if (filter.fileId !== undefined) {
-      wQb.andWhere("fw.file_id = :fileId", { fileId: filter.fileId });
-    }
-    if (filter.processVersionId !== undefined) {
-      wQb.andWhere("fw.process_version_id = :pvId", { pvId: filter.processVersionId });
-    }
-    if (filter.from !== undefined) {
-      wQb.andWhere("fw.first_at >= :from", { from: filter.from });
-    }
-    if (filter.to !== undefined) {
-      wQb.andWhere("fw.first_at <= :to", { to: filter.to });
-    }
+    const applyFilters = (query: any, alias: string) => {
+      if (filter.birthTime) query.andWhere("f.birth_time = :bt", { bt: filter.birthTime });
+      if (filter.status) query.andWhere("f.status = :st", { st: filter.status });
+      if (filter.filesystemId) query.andWhere("f_fs.uuid = :fsId", { fsId: filter.filesystemId });
+      if (filter.trackingStartedAt) query.andWhere("f.tracking_started_at = :tsa", { tsa: filter.trackingStartedAt });
+      if (filter.osUserId) query.andWhere("u.username = :uname", { uname: filter.osUserId });
+      if (filter.process) query.andWhere("p.executable_path LIKE :proc", { proc: `%${filter.process}%` });
+      if (filter.versionNumber) query.andWhere("fv.version_number = :vnum", { vnum: filter.versionNumber });
+      if (filter.firstAt) query.andWhere(`${alias}.first_at >= :first`, { first: filter.firstAt });
+      if (filter.executablePath) query.andWhere(`${alias}.executable_path LIKE :epath`, { epath: `%${filter.executablePath}%` });
+    };
+
+    applyFilters(qb, "fr");
+    applyFilters(wQb, "fw");
 
     const [reads, writes] = await Promise.all([
-      qb.getMany(),
-      wQb.getMany(),
+      (!filter.operationType || filter.operationType === 'read') ? qb.getMany() : Promise.resolve([]),
+      (!filter.operationType || filter.operationType === 'write') ? wQb.getMany() : Promise.resolve([]),
     ]);
 
     return [
@@ -213,60 +189,9 @@ export class FileReadService {
       initialSizeBytes: row.file.initial_size_bytes,
       trackingStartAt: row.file.tracking_started_at,
       deletedAt: row.file.deleted_at,
-      iNode: row.file.inoGen
-
+      iNode: row.file.inoGen,
     };
   }
-
-  private mapFileRead1(r: FileRead): FileReadDto {
-    return {
-      fileId: r.file_id,
-      processVersionId: r.process_version_id,
-      firstAt: r.first_at,
-      lastAt: r.last_at,
-      count: r.count,
-
-      file: r.file ? {
-        id: r.file.id,
-        fullPath: r.file.full_path,
-        initialSizeBytes: r.file.initial_size_bytes,
-        birthTime: r.file.birth_time,
-        trackingStartedAt: r.file.tracking_started_at,
-        deletedAt: r.file.deleted_at,
-        filesystem: r.file.filesystem ? {
-          id: r.file.filesystem.id,
-          uuid: r.file.filesystem.uuid,
-        } : null,
-      } : null,
-
-      fileVersion: r.fileVersion ? {
-        id: r.fileVersion.id,
-        versionNumber: r.fileVersion.version_number,
-        depth: r.fileVersion.depth,
-      } : null,
-
-      processVersion: r.processVersion ? {
-        id: r.processVersion.id,
-        versionNumber: r.processVersion.version_number,
-        workingDirectory: r.processVersion.working_directory,
-        process: r.processVersion.process ? {
-          id: r.processVersion.process.id,
-          pid: r.processVersion.process.pid,
-          executablePath: r.processVersion.process.executable_path,
-          arguments: r.processVersion.process.arguments,
-          osUser: r.processVersion.process.osUser ? {
-            uid: r.processVersion.process.osUser.uid,
-            username: r.processVersion.process.osUser.username,
-          } : null,
-        } : null,
-        originFile: r.processVersion.originFile ? {
-          id: r.processVersion.originFile.id,
-          fullPath: r.processVersion.originFile.full_path,
-        } : null,
-      } : null,
-    };
-  }
-
 
   async getFileReadByPk(fileId: number, processVersionId: number) {
     return this.fileReadRepo

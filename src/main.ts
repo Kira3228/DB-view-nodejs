@@ -7,8 +7,11 @@ import { validate } from "./middleware/validate";
 import { errorHandler } from "./middleware/error-handler";
 import { File, FileRead, FileVersion, FileWrite, Filesystem, OSUser, Process, ProcessVersion, } from './entities'
 import { PREFIX_META, ROUTE_META, RouteInfo } from "./shared/utils/routing";
-import { FileReadRepositoryToken, FileReadService, FileReadServiceToken, FileRepositoryToken, FileVersionRepositoryToken, FileWriteRepositoryToken } from "./File/file.service";
-import { FileController } from "./File/file.controller";
+import { FileController } from "./event/event.controller";
+import { EventServiceToken, FileManagementServiceToken, FileReadRepositoryToken, FileRepositoryToken, FileVersionRepositoryToken, FileWriteRepositoryToken } from "./constants/tokens";
+import { EventService } from "./event/event.service";
+import { FileMamagementContoller } from "./file-management/file-management.controller";
+import { FileManagementService } from "./file-management/file-management.service";
 
 EventEmitter.defaultMaxListeners = 15;
 
@@ -45,8 +48,13 @@ async function bootstrap() {
     container.register(FileRepositoryToken, { useValue: getRepository(File) });
     container.register(FileVersionRepositoryToken, { useValue: getRepository(FileVersion) });
 
-    container.register(FileReadServiceToken, { useClass: FileReadService })
-    const controllers: { new(...args: any[]): any }[] = [FileController]
+    container.register(EventServiceToken, { useClass: EventService })
+    container.register(FileManagementServiceToken, { useClass: FileManagementService })
+
+    /*============================================= 
+            РЕГИСТРАЦИЯ КОНТРОЛЛЕРОВ
+    =============================================*/
+    const controllers: { new(...args: any[]): any }[] = [FileController, FileMamagementContoller]
 
     for (const ControllerClass of controllers) {
         const prefix = Reflect.getMetadata(PREFIX_META, ControllerClass) || '';

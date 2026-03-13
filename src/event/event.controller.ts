@@ -1,19 +1,21 @@
 import { inject, injectable } from "tsyringe";
 import { Controller, Get, Patch, Post } from "../shared/utils/routing";
-import { FileReadService, FileReadServiceToken } from "./file.service";
+import { EventService, } from "./event.service";
 import { Request, Response } from "express";
+import { log } from "console";
+import { EventFilterDto } from "./dto/event-filter.dto";
 
-@Controller(`/file`)
+@Controller(`/events`)
 @injectable()
 export class FileController {
   constructor(
-    @inject(FileReadServiceToken) private readonly fileReadService: FileReadService
+    @inject(EventService) private readonly eventService: EventService
   ) { }
 
   @Get(`/files`)
   async getFiles(req: Request, res: Response) {
     const { filesystem_id, deleted } = req.query;
-    const result = await this.fileReadService.getFiles({
+    const result = await this.eventService.getFiles({
       filesystemId: filesystem_id ? Number(filesystem_id) : undefined,
       deleted: deleted === "true" ? true : deleted === "false" ? false : undefined,
     });
@@ -22,7 +24,7 @@ export class FileController {
 
   @Get(`/files/:id`)
   async getFileById(req: Request, res: Response) {
-    const result = await this.fileReadService.getFileById(Number(req.params.id));
+    const result = await this.eventService.getFileById(Number(req.params.id));
     if (!result) return res.status(404).json({ message: "File not found" });
     res.status(200).json(result);
   }
@@ -30,7 +32,7 @@ export class FileController {
   @Get(`/versions`)
   async getFileVersions(req: Request, res: Response) {
     const { file_id, origin_process_version_id, depth } = req.query;
-    const result = await this.fileReadService.getFileVersions({
+    const result = await this.eventService.getFileVersions({
       fileId: file_id ? Number(file_id) : undefined,
       originProcessVersionId: origin_process_version_id
         ? Number(origin_process_version_id)
@@ -42,31 +44,24 @@ export class FileController {
 
   @Get(`/versions/:id`)
   async getFileVersionById(req: Request, res: Response) {
-    const result = await this.fileReadService.getFileVersionById(
+    const result = await this.eventService.getFileVersionById(
       Number(req.params.id)
     );
     if (!result) return res.status(404).json({ message: "File version not found" });
     res.status(200).json(result);
   }
 
-  @Get(`/reads`)
-  async getReads(req: Request, res: Response) {
-    const { file_id, process_version_id, from, to } = req.query;
-    const result = await this.fileReadService.getFileRead({
-      fileId: file_id ? Number(file_id) : undefined,
-      processVersionId: process_version_id
-        ? Number(process_version_id)
-        : undefined,
-      from: from ? new Date(from as string) : undefined,
-      to: to ? new Date(to as string) : undefined,
-    });
+  @Get(`/all`)
+  async getReads(req: Request<any, any, any, EventFilterDto>, res: Response) {
+    log(req.query)
+    const result = await this.eventService.getEvents(req.query);
     res.status(200).json(result);
   }
 
 
   @Get(`/reads/:fileId/:processVersionId`)
   async getReadByPk(req: Request, res: Response) {
-    const result = await this.fileReadService.getFileReadByPk(
+    const result = await this.eventService.getFileReadByPk(
       Number(req.params.fileId),
       Number(req.params.processVersionId)
     );
@@ -78,7 +73,7 @@ export class FileController {
   @Get(`/writes`)
   async getWrites(req: Request, res: Response) {
     const { file_id, process_version_id, from, to } = req.query;
-    const result = await this.fileReadService.getFileWrite({
+    const result = await this.eventService.getFileWrite({
       fileId: file_id ? Number(file_id) : undefined,
       processVersionId: process_version_id
         ? Number(process_version_id)
@@ -91,7 +86,7 @@ export class FileController {
 
   @Get(`/writes/:fileId/:processVersionId`)
   async getWriteByPk(req: Request, res: Response) {
-    const result = await this.fileReadService.getFileWriteByPk(
+    const result = await this.eventService.getFileWriteByPk(
       Number(req.params.fileId),
       Number(req.params.processVersionId)
     );
@@ -101,7 +96,7 @@ export class FileController {
 
   @Get(`/chain/:fileId`)
   async getChain(req: Request, res: Response) {
-    const result = await this.fileReadService.getFileChain(
+    const result = await this.eventService.getFileChain(
       Number(req.params.fileId),
       req.query.depth ? Number(req.query.depth) : undefined
     );
@@ -111,7 +106,7 @@ export class FileController {
 
   @Post(`/generate`)
   async generateMock(req: Request, res: Response) {
-    await this.fileReadService.seedDatabase()
+    await this.eventService.seedDatabase()
     res.status(200).json({ status: `OK` })
   }
 }
