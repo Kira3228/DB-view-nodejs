@@ -20,56 +20,59 @@ export class FileManagementService {
       .leftJoinAndSelect("p.osUser", "u")
       .leftJoinAndSelect("f.versions", "fv");
 
+    if (filter.status) {
+      qb.andWhere("f.status = :status", { status: filter.status });
+    }
 
-    // if (filter.status) {
-    //   qb.andWhere("f.status = :status", { status: filter.status });
-    // }
+    if (filter.filesystemId) {
+      qb.andWhere("fs.uuid = :fsId", { fsId: filter.filesystemId });
+    }
 
-    // if (filter.filesystemId) {
-    //   qb.andWhere("fs.uuid = :fsId", { fsId: filter.filesystemId });
-    // }
+    if (filter.trackingStartedAt) {
+      qb.andWhere("f.tracking_started_at = :tsa", { tsa: filter.trackingStartedAt });
+    }
 
-    // if (filter.trackingStartedAt) {
-    //   qb.andWhere("f.tracking_started_at = :tsa", { tsa: filter.trackingStartedAt });
-    // }
+    if (filter.birthTime) {
+      qb.andWhere("f.birth_time = :bt", { bt: filter.birthTime });
+    }
 
-    // if (filter.birthTime) {
-    //   qb.andWhere("f.birth_time = :bt", { bt: filter.birthTime });
-    // }
+    if (filter.fileType) {
+      if (filter.fileType === 'origin') {
+        qb.andWhere("f.origin_process_version_id IS NULL");
+      } else if (filter.fileType === 'intermediate') {
+        qb.andWhere("f.origin_process_version_id IS NOT NULL");
+      }
+    }
 
-    // if (filter.fileType) {
-    //   if (filter.fileType === 'origin') {
-    //     qb.andWhere("f.origin_process_version_id IS NULL");
-    //   } else if (filter.fileType === 'intermediate') {
-    //     qb.andWhere("f.origin_process_version_id IS NOT NULL");
-    //   }
-    // }
+    if (filter.versionNumber) {
+      qb.andWhere("fv.version_number = :vnum", { vnum: filter.versionNumber });
+    }
 
-    // if (filter.versionNumber) {
-    //   qb.andWhere("fv.version_number = :vnum", { vnum: filter.versionNumber });
-    // }
+    if (filter.osUserId) {
+      qb.andWhere("u.username = :uname", { uname: filter.osUserId });
+    }
 
-    // if (filter.osUserId) {
-    //   qb.andWhere("u.username = :uname", { uname: filter.osUserId });
-    // }
+    if (filter.process) {
+      qb.andWhere("p.executable_path LIKE :proc", { proc: `%${filter.process}%` });
+    }
 
-    // if (filter.process) {
-    //   qb.andWhere("p.executable_path LIKE :proc", { proc: `%${filter.process}%` });
-    // }
-
-    // const limit = filter.limit || 14;
-    // const page = filter.page || 1;
-    // const skip = (page - 1) * limit;
+    const page = Number(filter.page) || 1;
+    const limit = Number(filter.limit) || 14;
 
     const [items, total] = await qb
       .orderBy("f.tracking_started_at", "DESC")
-      // .take(limit)
-      // .skip(skip)
+      .skip((page - 1) * limit)   // 🔥 pagination в БД
+      .take(limit)
       .getManyAndCount();
 
+    const mappedFile = items.map(file => this.mapFile(file));
+
     return {
-      items: items.map(file => this.mapFile(file)),
-      total
+      data: mappedFile,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     };
   }
 

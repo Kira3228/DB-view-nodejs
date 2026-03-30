@@ -163,10 +163,26 @@ export class EventService {
       (!filter.operationType || filter.operationType === 'write') ? wQb.getMany() : Promise.resolve([]),
     ]);
 
-    return [
+    const merged = [
       ...reads.map(r => ({ type: "read" as const, ...this.mapFileRead(r) })),
       ...writes.map(w => ({ type: "write" as const, ...this.mapFileRead(w as any) })),
     ].sort((a, b) => new Date(b.firstAt).getTime() - new Date(a.firstAt).getTime());
+
+    const page = Number(filter.page) || 1
+    const limit = Number(filter.limit) || 14
+
+    const start = (page - 1) * limit;
+    const end = start + limit;
+
+    const paginatedData = merged.slice(start, end);
+
+    return {
+      data: paginatedData,
+      total: merged.length,
+      page,
+      limit,
+      totalPages: Math.ceil(merged.length / limit),
+    }
   }
 
   private mapFileRead(row: FileRead | FileWrite) {

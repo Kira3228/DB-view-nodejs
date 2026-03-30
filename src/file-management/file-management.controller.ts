@@ -9,8 +9,7 @@ import { Request, Response } from "express";
 export class FileMamagementContoller {
   constructor(
     @inject(FileManagementServiceToken) private readonly fileManagementService: FileManagementService
-  ) {
-  }
+  ) { }
 
 
   @Get(`/get/all`)
