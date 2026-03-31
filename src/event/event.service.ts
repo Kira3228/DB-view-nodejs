@@ -9,10 +9,6 @@ import {
 import { EventFilterDto } from "./dto/event-filter.dto";
 import { FileReadRepositoryToken, FileRepositoryToken, FileVersionRepositoryToken, FileWriteRepositoryToken } from "../constants/tokens";
 
-
-
-
-
 export interface GetFilesFilter {
   filesystemId?: number;
   deleted?: boolean;
@@ -375,15 +371,12 @@ export class EventService {
       await manager.query('DELETE FROM os_users');
       await manager.query('DELETE FROM filesystems');
 
-      // 1. Filesystems
       await manager.query(`INSERT INTO filesystems (id, uuid) VALUES (1, '550e8400-e29b-41d4-a716-446655440000')`);
       await manager.query(`INSERT INTO filesystems (id, uuid) VALUES (2, '6ba7b811-9dad-11d1-80b4-00c04fd430c8')`);
 
-      // 2. OS Users
       await manager.query(`INSERT INTO os_users (id, uid, gid, username, home_directory, shell, full_name) VALUES (1, 0, 0, 'root', '/root', '/bin/bash', 'Superuser')`);
       await manager.query(`INSERT INTO os_users (id, uid, gid, username, home_directory, shell, full_name) VALUES (2, 1000, 1000, 'node_user', '/home/node', '/bin/sh', 'App Runner')`);
 
-      // 3. Files
       for (let i = 1; i <= count; i++) {
         const buf = Buffer.alloc(4);
         buf.writeUInt32BE(i, 0);
