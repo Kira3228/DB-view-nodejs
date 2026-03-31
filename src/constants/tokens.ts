@@ -2,7 +2,6 @@ import { InjectionToken } from "tsyringe";
 import { EventService } from "../event/event.service";
 import { File, FileRead, FileVersion, FileWrite } from "../entities";
 import { Repository } from "typeorm";
-import { contextsKey } from "express-validator/src/base";
 import { FileManagementService } from "../file-management/file-management.service";
 
 export const EventServiceToken: InjectionToken<EventService> =
