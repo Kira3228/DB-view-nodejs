@@ -1,4 +1,3 @@
-// import { SystemEvent } from "../entities/system_events.entity";
 import * as path from 'path';
 import { ExceptionsDto, ReportData, ReportHeader } from "./report.dto";
 import { TableHeader, TChains } from "./report.types";
@@ -13,8 +12,6 @@ import { genearteChainsXlsx } from "./renders/chains-reports/xlsx.render";
 import { ChainsService } from "./chains.service";
 import { EventService } from "./event.service";
 import { toFlattenObject } from "./utils/to-flatten-object";
-import { log } from "console";
-// import { loadEnvFile } from "process";
 
 export class ReportService {
     private chainService: ChainsService

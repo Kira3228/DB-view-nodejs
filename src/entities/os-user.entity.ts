@@ -23,7 +23,6 @@ export class OSUser {
 
   @Column({ nullable: true })
   full_name: string;
-
   @CreateDateColumn()
   created_at: Date;
 

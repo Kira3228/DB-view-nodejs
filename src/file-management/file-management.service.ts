@@ -69,7 +69,7 @@ export class FileManagementService {
 
     const [items, total] = await qb
       .orderBy("f.tracking_started_at", "DESC")
-      .skip((page - 1) * limit)   // 🔥 pagination в БД
+      .skip((page - 1) * limit)   
       .take(limit)
       .getManyAndCount();
 

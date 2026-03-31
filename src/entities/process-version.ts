@@ -15,7 +15,6 @@ export class ProcessVersion {
   @JoinColumn({ name: "process_id" })
   process: Process;
 
-  // убираем @Column() process_id
 
   @Column()
   version_number: number;
@@ -24,7 +23,6 @@ export class ProcessVersion {
   @JoinColumn({ name: "origin_file_id" })
   originFile: File;
 
-  // убираем @Column() origin_file_id
 
   @CreateDateColumn()
   created_at: Date;

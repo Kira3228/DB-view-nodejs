@@ -16,7 +16,6 @@ export class File {
   @JoinColumn({ name: "filesystem_id" })
   filesystem: Filesystem;
 
-  // убираем @Column() filesystem_id
 
   @Column("blob")
   filehandle: Buffer;
@@ -34,7 +33,6 @@ export class File {
   @JoinColumn({ name: "origin_process_version_id" })
   originProcessVersion: ProcessVersion;
 
-  // убираем @Column() origin_process_version_id
 
   @Column({ type: "datetime", nullable: true })
   deleted_at: Date;

@@ -25,8 +25,6 @@ export class Process {
   @JoinColumn({ name: "os_user_id" })
   osUser: OSUser;
 
-  // убираем @Column() os_user_id
-
   @Column()
   group_id: number;
 

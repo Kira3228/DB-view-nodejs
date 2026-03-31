@@ -361,7 +361,6 @@ export class EventService {
     try {
       console.time("Seed Duration");
 
-      // Чистим
       await manager.query('DELETE FROM file_writes');
       await manager.query('DELETE FROM file_reads');
       await manager.query('DELETE FROM file_versions');
@@ -397,7 +396,7 @@ export class EventService {
         );
       }
 
-      // 4. Processes
+ 
       for (let i = 1; i <= count; i++) {
         await manager.query(
           `INSERT INTO processes
@@ -418,7 +417,6 @@ export class EventService {
         );
       }
 
-      // 5. Process Versions
       for (let i = 1; i <= count; i++) {
         await manager.query(
           `INSERT INTO process_versions
@@ -435,7 +433,7 @@ export class EventService {
         );
       }
 
-      // 6. File Versions
+
       for (let i = 1; i <= count; i++) {
         await manager.query(
           `INSERT INTO file_versions
@@ -452,7 +450,7 @@ export class EventService {
         );
       }
 
-      // 7. File Reads
+
       for (let i = 1; i <= count; i++) {
         await manager.query(
           `INSERT INTO file_reads
@@ -469,7 +467,6 @@ export class EventService {
         );
       }
 
-      // 8. File Writes
       for (let i = 1; i <= count; i++) {
         await manager.query(
           `INSERT INTO file_writes
