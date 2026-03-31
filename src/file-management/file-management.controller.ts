@@ -3,6 +3,8 @@ import { Controller, Get } from "../shared/utils/routing";
 import { FileManagementServiceToken } from "../constants/tokens";
 import { FileManagementService } from "./file-management.service";
 import { Request, Response } from "express";
+import { log } from "console";
+import { FileManagementDto } from "./dto/file-management.dto";
 
 @Controller(`/file`)
 @injectable()
@@ -13,8 +15,8 @@ export class FileMamagementContoller {
 
 
   @Get(`/get/all`)
-  async getFiles(req: Request, res: Response) {
-    const result = await this.fileManagementService.getFiles()
+  async getFiles(req: Request<any, any, any, FileManagementDto>, res: Response) {
+    const result = await this.fileManagementService.getFiles(req.query)
     res.status(200).json(result)
   }
 }

@@ -12,6 +12,9 @@ import { EventServiceToken, FileManagementServiceToken, FileReadRepositoryToken,
 import { EventService } from "./event/event.service";
 import { FileMamagementContoller } from "./file-management/file-management.controller";
 import { FileManagementService } from "./file-management/file-management.service";
+import { JsonSettingsRepository, JsonSettingsRepositoryToken } from "./settings/JsonSettingsRepository";
+import { SettngsService, SettngsServiceToken } from "./settings/settings.service";
+import { SettingsController } from "./settings/settings.controller";
 
 EventEmitter.defaultMaxListeners = 15;
 
@@ -50,11 +53,12 @@ async function bootstrap() {
 
     container.register(EventServiceToken, { useClass: EventService })
     container.register(FileManagementServiceToken, { useClass: FileManagementService })
-
+    container.register<JsonSettingsRepository>(JsonSettingsRepositoryToken, { useClass: JsonSettingsRepository })
+    container.register(SettngsServiceToken, { useClass: SettngsService })
     /*============================================= 
             РЕГИСТРАЦИЯ КОНТРОЛЛЕРОВ
     =============================================*/
-    const controllers: { new(...args: any[]): any }[] = [FileController, FileMamagementContoller]
+    const controllers: { new(...args: any[]): any }[] = [FileController, FileMamagementContoller, SettingsController]
 
     for (const ControllerClass of controllers) {
         const prefix = Reflect.getMetadata(PREFIX_META, ControllerClass) || '';

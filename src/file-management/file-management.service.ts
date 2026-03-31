@@ -20,40 +20,48 @@ export class FileManagementService {
       .leftJoinAndSelect("p.osUser", "u")
       .leftJoinAndSelect("f.versions", "fv");
 
-    if (filter.status) {
+    if (filter?.status) {
       qb.andWhere("f.status = :status", { status: filter.status });
     }
 
-    if (filter.filesystemId) {
+    if (filter?.filesystemId) {
       qb.andWhere("fs.uuid = :fsId", { fsId: filter.filesystemId });
     }
 
-    if (filter.trackingStartedAt) {
+    if (filter?.trackingStartedAt) {
       qb.andWhere("f.tracking_started_at = :tsa", { tsa: filter.trackingStartedAt });
     }
 
-    if (filter.birthTime) {
+    if (filter?.birthTime) {
       qb.andWhere("f.birth_time = :bt", { bt: filter.birthTime });
     }
 
-    if (filter.fileType) {
-      if (filter.fileType === 'origin') {
+    if (filter?.fileType) {
+      if (filter?.fileType === 'origin') {
         qb.andWhere("f.origin_process_version_id IS NULL");
-      } else if (filter.fileType === 'intermediate') {
+      } else if (filter?.fileType === 'intermediate') {
         qb.andWhere("f.origin_process_version_id IS NOT NULL");
       }
     }
 
-    if (filter.versionNumber) {
+    if (filter?.versionNumber) {
       qb.andWhere("fv.version_number = :vnum", { vnum: filter.versionNumber });
     }
 
-    if (filter.osUserId) {
+    if (filter?.osUserId) {
       qb.andWhere("u.username = :uname", { uname: filter.osUserId });
     }
 
-    if (filter.process) {
+    if (filter?.process) {
       qb.andWhere("p.executable_path LIKE :proc", { proc: `%${filter.process}%` });
+    }
+
+    if (filter?.searchTerm) {
+      qb.andWhere(
+        `(LOWER(f.full_path) LIKE LOWER(:search) 
+      OR CAST(f.inoGen AS TEXT) LIKE :search)`,
+        { search: `%${filter.searchTerm}%` }
+      );
     }
 
     const page = Number(filter.page) || 1;

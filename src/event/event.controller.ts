@@ -53,6 +53,7 @@ export class FileController {
 
   @Get(`/all`)
   async getReads(req: Request<any, any, any, EventFilterDto>, res: Response) {
+    log(req.query)
     const result = await this.eventService.getEvents(req.query);
     res.status(200).json(result);
   }

@@ -1,4 +1,4 @@
-export interface EventFilterDto {
+export interface FileManagementDto {
   status?: string
   filesystemId?: string
   trackingStartedAt?: string
@@ -7,10 +7,7 @@ export interface EventFilterDto {
   versionNumber?: number
   osUserId?: string
   executablePath?: string
-  operationType?: string
-  firstAt?: string
   limit?: number
   page?: number
   process?: string
-  searchTerm?: string
 }

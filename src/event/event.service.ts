@@ -1,5 +1,5 @@
 import { inject, injectable, InjectionToken } from "tsyringe";
-import { Repository } from "typeorm";
+import { Brackets, Repository } from "typeorm";
 import {
   File,
   FileVersion,
@@ -153,6 +153,21 @@ export class EventService {
       if (filter.versionNumber) query.andWhere("fv.version_number = :vnum", { vnum: filter.versionNumber });
       if (filter.firstAt) query.andWhere(`${alias}.first_at >= :first`, { first: filter.firstAt });
       if (filter.executablePath) query.andWhere(`${alias}.executable_path LIKE :epath`, { epath: `%${filter.executablePath}%` });
+      if (filter.searchTerm) {
+        query.andWhere(
+          new Brackets((qb) => {
+            qb.where("f.full_path LIKE :searchTerm", {
+              searchTerm: `%${filter.searchTerm}%`,
+            });
+
+            if (!isNaN(Number(filter.searchTerm))) {
+              qb.orWhere("f.inoGen = :inode", {
+                inode: Number(filter.searchTerm),
+              });
+            }
+          })
+        );
+      }
     };
 
     applyFilters(qb, "fr");

@@ -1,0 +1,16 @@
+{
+  "monitoringPaths": [
+    "/first",
+    "/second"
+  ],
+  "exceptions": [
+    "/fifth"
+  ],
+  "dataBase": {
+    "path": "/var/db/pmovt.db"
+  },
+  "interaface": {
+    "rowsQuantity": 14,
+    "virtualScrolling": false
+  }
+}
